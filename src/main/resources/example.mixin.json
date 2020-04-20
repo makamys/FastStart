@@ -6,6 +6,8 @@
     "compatibilityLevel": "JAVA_8",
     "mixins": [
         "MixinTextureMap",
-        "ITextureMap"
+        "ITextureMap",
+        "MixinFolderResourcePack",
+        "MixinDefaultResourcePack"
     ]
 }
