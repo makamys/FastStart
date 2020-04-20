@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package makamys.faststart;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -14,8 +14,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
 
-import com.example.examplemod.mixin.ITextureMap;
-
+import makamys.faststart.mixin.ITextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;

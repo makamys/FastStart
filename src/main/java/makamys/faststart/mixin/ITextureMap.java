@@ -1,4 +1,4 @@
-package com.example.examplemod.mixin;
+package makamys.faststart.mixin;
 
 import java.nio.IntBuffer;
 import java.util.ArrayList;

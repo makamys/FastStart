@@ -1,4 +1,4 @@
-package com.example.examplemod.mixin;
+package makamys.faststart.mixin;
 
 import java.io.File;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package makamys.faststart;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.OpenGlHelper;

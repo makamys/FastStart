@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package makamys.faststart;
 
 import java.util.ArrayList;
 import java.util.List;

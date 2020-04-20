@@ -1,4 +1,4 @@
-package com.example.examplemod.mixin;
+package makamys.faststart.mixin;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -19,9 +19,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
-import com.example.examplemod.ExampleMod;
-import com.example.examplemod.FastStart;
-
+import makamys.faststart.ExampleMod;
+import makamys.faststart.FastStart;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
