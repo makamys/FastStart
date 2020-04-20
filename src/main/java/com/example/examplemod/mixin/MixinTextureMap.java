@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Map;
 
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import com.example.examplemod.ExampleMod;
 import com.example.examplemod.FastStart;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
@@ -33,29 +35,31 @@ public abstract class MixinTextureMap {
 	/*@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljava/io/File;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(File file) throws IOException {
-	    System.out.println("Running ImageIO.read redirector. file=" + file);
+	    //System.out.println("Running ImageIO.read redirector. file=" + file);
         return ImageIO.read(file);
     }
 	
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljavax/imageio/stream/ImageInputStream;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(ImageInputStream iis) throws IOException {
-        System.out.println("Running ImageIO.read redirector. iis=" + iis);
+        //System.out.println("Running ImageIO.read redirector. iis=" + iis);
         return ImageIO.read(iis);
     }*/
 	
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;read(Ljava/io/InputStream;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(InputStream is) throws IOException {
-        System.out.println("Running ImageIO.read redirector. is=" + is);
-        return FastStart.instance.fetchLastStreamedResource();
+        //System.out.println("Running ImageIO.read redirector. is=" + is);
+        BufferedImage result = FastStart.instance.fetchLastStreamedResource();
+        //System.out.println("ImageIO.read redirector returning " + result);
+        return result;
         //return ImageIO.read(is);
     }
 	
 	/*@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljava/net/URL;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(URL url) throws IOException {
-        System.out.println("Running ImageIO.read redirector. url=" + url);
+        //System.out.println("Running ImageIO.read redirector. url=" + url);
         return ImageIO.read(url);
     }*/
 	
@@ -66,10 +70,32 @@ public abstract class MixinTextureMap {
         return res.getInputStream();
     }
 	
-    @Inject(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", at = @At("HEAD"))
+    /*@Inject(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", at = @At("HEAD"))
     private void onConstructed(IResourceManager resman, CallbackInfo ci) {
-        if(!((ITextureMap)this).skipFirst()) {
+        if(!skipFirst()) {
             FastStart.instance.addSpriteLoadJobs(resman, mapRegisteredSprites, ((ITextureMap)this));
         }
+    }*/
+    
+    @Inject(method = "registerIcons()V", at = @At("RETURN"))
+    private void afterRegisterIcons(CallbackInfo ci) {
+        if(!skipFirst()) {
+            FastStart.instance.addSpriteLoadJobs(Minecraft.getMinecraft().getResourceManager(), mapRegisteredSprites, ((ITextureMap)this));
+        }
+    }
+    
+    // Forge adds this, I think
+    private boolean skipFirst() {
+        try {
+            Field skipFirstField = TextureMap.class.getDeclaredField("skipFirst");
+            
+            skipFirstField.setAccessible(true);
+            
+            return (boolean)skipFirstField.get(this);
+        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return false;
     }
 }

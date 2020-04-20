@@ -29,7 +29,7 @@ public class FastStart {
     protected ConcurrentHashMap<IResource, BufferedImage> map = new ConcurrentHashMap<>();
     
     protected IResource lastStreamedResource;
-    protected Optional<IResource> waitingOn = Optional.empty();
+    public static Optional<IResource> waitingOn = Optional.empty();
     
     static class ImageLoaderThread extends Thread {
         
@@ -49,20 +49,28 @@ public class FastStart {
                     IResource res = parent.queue.take();
                     say("Found a res: " + res);
                     
-                    BufferedImage img;
-                    try {
-                        img = ImageIO.read(res.getInputStream());
-                    } catch (IOException e) {
-                        img = null;
-                        e.printStackTrace();
-                    }
+                    //Thread.sleep(10000);
                     
-                    parent.map.put(res, img);
+                    if(!parent.map.containsKey(res)) {
                     
-                    synchronized(parent.waitingOn) {
-                        if(parent.waitingOn.isPresent() && parent.waitingOn.get().equals(res)) {
-                            parent.waitingOn.notify();
+                        BufferedImage img;
+                        try {
+                            img = ImageIO.read(res.getInputStream());
+                        } catch (IOException e) {
+                            img = null;
+                            e.printStackTrace();
                         }
+                        
+                        parent.map.put(res, img);
+                        
+                        
+                            if(parent.waitingOn.isPresent() && parent.waitingOn.get().equals(res)) {
+                                synchronized(parent.waitingOn) {
+                                parent.waitingOn.notify();
+                            }
+                        }
+                    } else {
+                        //System.out.println("meh, I already loaded " + res);
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -115,8 +123,12 @@ public class FastStart {
     public BufferedImage fetchLastStreamedResource() {
         while(!map.containsKey(lastStreamedResource)) {
             //System.out.println(lastStreamedResource + " hasn't been loaded yet, waiting...");
+            waitingOn = Optional.of(lastStreamedResource);
+            
+            
+            
             synchronized(waitingOn) {
-                waitingOn = Optional.of(lastStreamedResource);
+                queue.add(lastStreamedResource);
                 try {
                     waitingOn.wait();
                 } catch (InterruptedException e) {

@@ -27,9 +27,6 @@ public interface ITextureMap {
     @Accessor("mapRegisteredSprites")
     Map mapRegisteredSprites();
     
-    @Accessor("skipFirst")
-    boolean skipFirst();
-    
     @Invoker
     public ResourceLocation callCompleteResourceLocation(ResourceLocation p_147634_1_, int p_147634_2_);
 }
