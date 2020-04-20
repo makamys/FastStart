@@ -34,8 +34,9 @@ public class FastStart {
         
         FastStart parent;
         
-        public ImageLoaderThread(FastStart parent) {
+        public ImageLoaderThread(FastStart parent, int index) {
             this.parent = parent;
+            setName("Image loader thread #" + String.valueOf(index));
         }
         
         @Override
@@ -86,7 +87,7 @@ public class FastStart {
         int numThreads = 4;
         
         for(int i = 0; i < numThreads; i++) {
-            threads.add(new ImageLoaderThread(this));
+            threads.add(new ImageLoaderThread(this, i));
         }
         
         for(ImageLoaderThread t: threads) t.start();
