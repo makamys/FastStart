@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -61,18 +63,22 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private List<IClassTransformer> transformers;
 	private AddListenableListView<IClassTransformer> wrappedTransformers;
+	private WrappedMap<String, Class<?>> wrappedCachedClasses;
 	
 	private List<IClassTransformer> proxiedTransformers = new ArrayList<>();
 	
-	private Map<String, byte[]> cache = new HashMap<>();
+	private Map<String, byte[]> cache = new ConcurrentHashMap<>();
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
-	private Set<String> badTransformers = new HashSet<>(Arrays.asList());
+	private Set<String> badTransformers = new HashSet<>(Arrays.asList("org.spongepowered.asm.mixin.transformer.Proxy"));
 	
-	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers) {
+	private boolean debugPrint = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
+	
+	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
 		this.transformers = transformers;
 		this.wrappedTransformers = wrappedTransformers;
+		this.wrappedCachedClasses = wrappedCachedClasses;
 		
 		//eatThemAll();
 		
@@ -95,28 +101,30 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		File inFile = new File(Launch.minecraftHome, "classCache.dat");
 		
 		if(inFile.exists()) {
-			synchronized(cache) {
+			//synchronized(cache) {
 				logger.info("Loading class cache.");
 				cache.clear();
 				try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(inFile)))){
 					
-					
-					while(true) { // EOFException should break the loop
-						String className = in.readUTF();
-						int classLength = in.readInt();
-						byte[] classData = new byte[classLength];
-						in.read(classData, 0, classLength);
-						
-						cache.put(className, classData);
-						
-						logger.trace("Loaded " + className);
-					}
+					try {
+    					while(true) { // EOFException should break the loop
+    						String className = in.readUTF();
+    						int classLength = in.readInt();
+    						byte[] classData = new byte[classLength];
+    						in.read(classData, 0, classLength);
+    						
+    						cache.put(className, classData);
+    						wrappedCachedClasses.setBlackList(cache.keySet());
+    						
+    						superDebug("Loaded " + className);
+    					}
+					} catch(EOFException eof) {}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				logger.info("Loaded " + cache.size() + " cached classes.");
-			}
+			//}
 		} else {
 			logger.info("Couldn't find class cache file");
 		}
@@ -131,10 +139,9 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             e1.printStackTrace();
         }
 		
-		synchronized(cache) {
+		//synchronized(cache) {
 			logger.info("Saving class cache");
 			try{
-			    logger.info("For real  now");
 			    FileOutputStream out0 = new FileOutputStream(outFile);
 			    //BufferedOutputStream out1 = new BufferedOutputStream(out0);
 			    DataOutputStream out = new DataOutputStream(out0);
@@ -154,28 +161,27 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 				e.printStackTrace();
 			}
 			
-		}
+		//}
+	}
+	
+	private String describeBytecode(byte[] basicClass) {
+	    return basicClass == null ? "null" : String.format("length: %d, hash: %x", basicClass.length, basicClass.hashCode());
 	}
 	
 	@Override
 	public byte[] transform(String name, String transformedName, byte[] basicClass) {
 		byte[] result = null;
 		
-		if(basicClass == null) {
-		    logger.warn(String.format("Huh? basicClass for %s (%s) is null for some reason..", name, transformedName));
-		    return basicClass;
-		}
-		
-		logger.trace(String.format("Starting loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode()));
+	    superDebug(String.format("Starting loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		
 		//eatThemAll();
 		
 		try {
-    		synchronized(cache) {
+    		//synchronized(cache) {
     		    //System.out.println("time to get ");
     			if(cache.containsKey(transformedName)) {
     				result = cache.get(transformedName); // yay, we have it cached
-    				logger.trace("Yay, we have it cached!");
+    				superDebug("Yay, we have it cached!");
     			} else {
     				// fall back to normal behavior..
     				//transformers.clear();
@@ -191,27 +197,35 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
     				        wrappedTransformers.alt = null; // HIDE!
     				    }
     				    
-    				    logger.trace(String.format("Before transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode()));
+    				    superDebug(String.format("Before transformer: %s (%s)", transformer.getClass().getName(), describeBytecode(basicClass)));
     	                basicClass = transformer.transform(name, transformedName, basicClass);
-    	                logger.trace(String.format("After transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode()));
+    	                superDebug(String.format("After transformer: %s (%s)", transformer.getClass().getName(), describeBytecode(basicClass)));
     	                
     	                if(wrappedTransformers.alt == null) {
     	                    wrappedTransformers.alt = this; // reappear
     	                }
     	            }
-    				cache.put(transformedName, basicClass); // then cache it
+    			    if(basicClass != null) {
+    			        cache.put(transformedName, basicClass); // then cache it
+    			    }
     				//transformers.clear();
     				//transformers.add(0, this);
     				result = basicClass;
     			}
-    		}
+    		//}
 		} catch(Exception e) {
 		    e.printStackTrace();
 		}
 
 		wrappedTransformers.alt = this;
-		logger.trace(String.format("Finished loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode()));
+	    superDebug(String.format("Finished loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		return result;
+	}
+	    
+	private void superDebug(String msg) {
+	    if(debugPrint) {
+	        logger.trace(msg);
+	    }
 	}
 
 	@Override

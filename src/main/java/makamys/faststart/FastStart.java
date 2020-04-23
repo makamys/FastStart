@@ -97,7 +97,7 @@ public class FastStart {
     public void init(){
         initThreads(4);
         
-        //registerCacheTransformer();
+        registerCacheTransformer();
         //CacheManager.loadLCLCache();
         //new CacheManager.SaveThread().start();
     }
@@ -114,12 +114,10 @@ public class FastStart {
     	try {
             LaunchClassLoader lcl = (LaunchClassLoader)Launch.classLoader;
             
+            
             Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
-            
             transformersField.setAccessible(true);
-            
             List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
-            
             
             AddListenableListView<IClassTransformer> listenableTransformers = 
             		new AddListenableListView<IClassTransformer>(transformers);
@@ -127,7 +125,16 @@ public class FastStart {
             transformersField.set(lcl, listenableTransformers);
 
             
-            cacheTransformer = new CacheTransformer(transformers, listenableTransformers);
+            Field cachedClassesField = LaunchClassLoader.class.getDeclaredField("cachedClasses");
+            cachedClassesField.setAccessible(true);
+            Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>)cachedClassesField.get(lcl);
+            //cachedClasses.clear(); // gotta do this to make Mixin happy
+            
+            WrappedMap<String, Class<?>> wrappedCachedClasses = new WrappedMap<String, Class<?>>(cachedClasses);
+            cachedClassesField.set(lcl, wrappedCachedClasses);
+            
+            
+            cacheTransformer = new CacheTransformer(transformers, listenableTransformers, wrappedCachedClasses);
             
             
             listenableTransformers.addListener(cacheTransformer);

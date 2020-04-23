@@ -1,11 +1,16 @@
 package makamys.faststart;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.stream.Collectors;
+
+import net.minecraft.launchwrapper.LaunchClassLoader;
 
 /** A wrapper around a list that emits events when items are added to the list. */
 
@@ -149,6 +154,18 @@ public class AddListenableListView<T> implements List<T> {
 
     @Override
     public ListIterator<T> listIterator(int index) {
+        boolean first = true;
+        
+        for(StackTraceElement e : Thread.currentThread().getStackTrace()) {
+            if(!first && !e.getClassName().equals(getClass().getName())) {
+                if(!e.getClassName().equals(LaunchClassLoader.class.getName())) {
+                    
+                    System.out.println("iterator called by " + String.join(" > ", Arrays.stream(Thread.currentThread().getStackTrace()).map(x -> x.getClassName()).collect(Collectors.toList())));
+                }
+                break;
+            }
+            first = false;
+        }
     	if(alt == null) {
     		return original.listIterator(index);
     	} else {
