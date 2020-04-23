@@ -3,6 +3,7 @@ package makamys.faststart;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -17,6 +18,9 @@ import javax.imageio.ImageIO;
 import makamys.faststart.mixin.ITextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
+import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraft.launchwrapper.Launch;
+import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraft.util.ResourceLocation;
 
 public class FastStart {
@@ -30,6 +34,8 @@ public class FastStart {
     protected IResource lastStreamedResource;
     public static Optional<IResource> waitingOn = Optional.empty();
     
+    private CacheTransformer cacheTransformer;
+    
     static class ImageLoaderThread extends Thread {
         
         FastStart parent;
@@ -37,6 +43,7 @@ public class FastStart {
         public ImageLoaderThread(FastStart parent, int index) {
             this.parent = parent;
             setName("Image loader thread #" + String.valueOf(index));
+            setDaemon(false);
         }
         
         @Override
@@ -84,13 +91,50 @@ public class FastStart {
     }
     
     public void init(){
-        int numThreads = 4;
+        initThreads(4);
         
+        registerCacheTransformer();
+    }
+    
+    private void initThreads(int numThreads) {
         for(int i = 0; i < numThreads; i++) {
             threads.add(new ImageLoaderThread(this, i));
         }
         
         for(ImageLoaderThread t: threads) t.start();
+    }
+    
+    private void registerCacheTransformer() {
+    	try {
+            LaunchClassLoader lcl = (LaunchClassLoader)Launch.classLoader;
+            
+            Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
+            
+            transformersField.setAccessible(true);
+            
+            List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
+            
+            
+            AddListenableListView<IClassTransformer> listenableTransformers = 
+            		new AddListenableListView<IClassTransformer>(transformers);
+            
+            transformersField.set(lcl, listenableTransformers);
+
+            
+            cacheTransformer = new CacheTransformer(transformers, listenableTransformers);
+            
+            
+            listenableTransformers.addListener(cacheTransformer);
+            
+            
+            //transformers.add(0, (IClassTransformer)cacheTransformer);
+            listenableTransformers.alt = cacheTransformer;
+            
+            System.out.println("Finished initializing cache transformer");
+        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            System.out.println("Exception registering cache transformer.");
+            e.printStackTrace();
+        }
     }
     
     public void setLastStreamedResource(IResource res) {
