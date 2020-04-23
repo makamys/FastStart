@@ -1,8 +1,12 @@
 package makamys.faststart;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -93,7 +97,9 @@ public class FastStart {
     public void init(){
         initThreads(4);
         
-        registerCacheTransformer();
+        //registerCacheTransformer();
+        //CacheManager.loadLCLCache();
+        //new CacheManager.SaveThread().start();
     }
     
     private void initThreads(int numThreads) {

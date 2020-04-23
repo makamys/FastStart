@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -67,6 +68,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
+	private Set<String> badTransformers = new HashSet<>(Arrays.asList());
+	
 	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers) {
 		this.transformers = transformers;
 		this.wrappedTransformers = wrappedTransformers;
@@ -105,6 +108,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 						in.read(classData, 0, classLength);
 						
 						cache.put(className, classData);
+						
+						logger.trace("Loaded " + className);
 					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -161,12 +166,13 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		    return basicClass;
 		}
 		
-		logger.trace("Starting loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode());
+		logger.trace(String.format("Starting loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode()));
 		
 		//eatThemAll();
-		wrappedTransformers.alt = null;
+		
 		try {
     		synchronized(cache) {
+    		    //System.out.println("time to get ");
     			if(cache.containsKey(transformedName)) {
     				result = cache.get(transformedName); // yay, we have it cached
     				logger.trace("Yay, we have it cached!");
@@ -180,9 +186,18 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
     				    if(transformer == this) {
     				        System.out.println("oops,");
     				    }
-    				    logger.trace("Before transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode());
+    				    
+    				    if(badTransformers.contains(transformer.getClass().getName())) {
+    				        wrappedTransformers.alt = null; // HIDE!
+    				    }
+    				    
+    				    logger.trace(String.format("Before transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode()));
     	                basicClass = transformer.transform(name, transformedName, basicClass);
-    	                logger.trace("After transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode());
+    	                logger.trace(String.format("After transformer: %s (length: %d, hash: %x)", transformer.getClass().getName(), basicClass.length, basicClass.hashCode()));
+    	                
+    	                if(wrappedTransformers.alt == null) {
+    	                    wrappedTransformers.alt = this; // reappear
+    	                }
     	            }
     				cache.put(transformedName, basicClass); // then cache it
     				//transformers.clear();
@@ -195,7 +210,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		}
 
 		wrappedTransformers.alt = this;
-		logger.trace("Finished loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode());
+		logger.trace(String.format("Finished loading class %s (%s) (length: %d, hash: %x", name, transformedName, basicClass.length, basicClass.hashCode()));
 		return result;
 	}
 
