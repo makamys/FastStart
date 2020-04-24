@@ -12,6 +12,13 @@ run/
 /.nb-gradle/
 eclipse/
 
+config/
+crash-reports/
+logs/
+options.txt
+.mixin.out/
+classCache.dat
+
 /*Audio files*/
 *.ogg
 *.WAV
