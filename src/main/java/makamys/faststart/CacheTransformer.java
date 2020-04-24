@@ -149,7 +149,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
         }
 		
 		//synchronized(cache) {
-			logger.info("Saving class cache");
+			logger.info("Saving class cache (size changed from " + lastSaveSize + " to " + size + ")");
 			try{
 			    FileOutputStream out0 = new FileOutputStream(outFile);
 			    //BufferedOutputStream out1 = new BufferedOutputStream(out0);
@@ -237,6 +237,48 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	    if(debugPrint) {
 	        logger.trace(msg);
 	    }
+	}
+	
+	public static CacheTransformer register() {
+		CacheTransformer cacheTransformer = null;
+    	try {
+            LaunchClassLoader lcl = (LaunchClassLoader)Launch.classLoader;
+            
+            
+            Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
+            transformersField.setAccessible(true);
+            List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
+            
+            AddListenableListView<IClassTransformer> listenableTransformers = 
+            		new AddListenableListView<IClassTransformer>(transformers);
+            
+            transformersField.set(lcl, listenableTransformers);
+
+            
+            Field cachedClassesField = LaunchClassLoader.class.getDeclaredField("cachedClasses");
+            cachedClassesField.setAccessible(true);
+            Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>)cachedClassesField.get(lcl);
+            //cachedClasses.clear(); // gotta do this to make Mixin happy
+            
+            WrappedMap<String, Class<?>> wrappedCachedClasses = new WrappedMap<String, Class<?>>(cachedClasses);
+            cachedClassesField.set(lcl, wrappedCachedClasses);
+            
+            
+            cacheTransformer = new CacheTransformer(transformers, listenableTransformers, wrappedCachedClasses);
+            
+            
+            listenableTransformers.addListener(cacheTransformer);
+            
+            
+            //transformers.add(0, (IClassTransformer)cacheTransformer);
+            listenableTransformers.alt = cacheTransformer;
+            
+            System.out.println("Finished initializing cache transformer");
+        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            System.out.println("Exception registering cache transformer.");
+            e.printStackTrace();
+        }
+    	return cacheTransformer;
 	}
 
 	@Override
