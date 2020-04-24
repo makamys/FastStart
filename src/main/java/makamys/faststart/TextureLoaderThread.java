@@ -29,7 +29,23 @@ class TextureLoaderThread extends Thread {
                 }
                 ResourceLoadJob job = parent.queue.take();
                 
-                IResource res = job.resource.orElse(getResource(job.resourceLocation.get()));
+                IResource res = job.resource.orElse(null);
+                if(res == null) {
+                	ResourceLocation resLoc = job.resourceLocation.get();
+                	if(parent.resMap.containsKey(resLoc)) {
+                		res = parent.resMap.get(resLoc);
+                	} else {
+            			try {
+            				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
+            				parent.resMap.put(resLoc, res);
+            				
+            				notifyIfWaitingOn(resLoc);
+            			} catch (IOException e) {
+            				// TODO Auto-generated catch block
+            				e.printStackTrace();
+            			}
+                	}
+                }
                 
                 if(!parent.map.containsKey(res)) {
                 
@@ -55,25 +71,6 @@ class TextureLoaderThread extends Thread {
                 e.printStackTrace();
             }
         }
-    }
-    
-    private IResource getResource(ResourceLocation resLoc) {
-    	if(parent.resMap.containsKey(resLoc)) {
-    		return parent.resMap.get(resLoc);
-    	} else {
-    		IResource res = null;
-			try {
-				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
-				parent.resMap.put(resLoc, res);
-				
-				notifyIfWaitingOn(resLoc);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-    		
-    		return res;
-    	}
     }
     
     private void notifyIfWaitingOn(Object o) {
