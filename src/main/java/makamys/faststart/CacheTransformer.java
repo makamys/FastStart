@@ -75,6 +75,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private boolean debugPrint = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	
+	private int lastSaveSize = 0;
+	
 	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
 		this.transformers = transformers;
 		this.wrappedTransformers = wrappedTransformers;
@@ -124,6 +126,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 					e.printStackTrace();
 				}
 				logger.info("Loaded " + cache.size() + " cached classes.");
+				
+				lastSaveSize = cache.size();
 			//}
 		} else {
 			logger.info("Couldn't find class cache file");
@@ -131,6 +135,11 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	
 	private void saveCache() {
+		int size = cache.size();
+		if(size == lastSaveSize) {
+			return; // don't save if the cache hasn't changed
+		}
+		
 		File outFile = new File(Launch.minecraftHome, "classCache.dat");
 		try {
             outFile.createNewFile();
@@ -162,6 +171,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 			}
 			
 		//}
+		
+		lastSaveSize = size;
 	}
 	
 	private String describeBytecode(byte[] basicClass) {
