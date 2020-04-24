@@ -73,7 +73,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private Set<String> badTransformers = new HashSet<>(Arrays.asList("org.spongepowered.asm.mixin.transformer.Proxy", "appeng.transformer.asm.ApiRepairer"));
 	
-	private boolean debugPrint = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
+	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	
 	private int lastSaveSize = 0;
 	
@@ -234,7 +234,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	    
 	private void superDebug(String msg) {
-	    if(debugPrint) {
+	    if(DEBUG_PRINT) {
 	        logger.trace(msg);
 	    }
 	}

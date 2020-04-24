@@ -156,16 +156,19 @@ public class AddListenableListView<T> implements List<T> {
     public ListIterator<T> listIterator(int index) {
         boolean first = true;
         
-        for(StackTraceElement e : Thread.currentThread().getStackTrace()) {
-            if(!first && !e.getClassName().equals(getClass().getName())) {
-                if(!e.getClassName().equals(LaunchClassLoader.class.getName())) {
-                    
-                    System.out.println("iterator called by " + String.join(" > ", Arrays.stream(Thread.currentThread().getStackTrace()).map(x -> x.getClassName()).collect(Collectors.toList())));
-                }
-                break;
-            }
-            first = false;
+        if(CacheTransformer.DEBUG_PRINT) {
+	        for(StackTraceElement e : Thread.currentThread().getStackTrace()) {
+	            if(!first && !e.getClassName().equals(getClass().getName())) {
+	                if(!e.getClassName().equals(LaunchClassLoader.class.getName())) {
+	                    
+	                    System.out.println("iterator called by " + String.join(" > ", Arrays.stream(Thread.currentThread().getStackTrace()).map(x -> x.getClassName()).collect(Collectors.toList())));
+	                }
+	                break;
+	            }
+	            first = false;
+	        }
         }
+        
     	if(alt == null) {
     		return original.listIterator(index);
     	} else {
