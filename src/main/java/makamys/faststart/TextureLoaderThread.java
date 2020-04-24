@@ -5,7 +5,10 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
+import makamys.faststart.ThreadedTextureLoader.ResourceLoadJob;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResource;
+import net.minecraft.util.ResourceLocation;
 
 class TextureLoaderThread extends Thread {
     
@@ -24,10 +27,9 @@ class TextureLoaderThread extends Thread {
                 if(parent.queue.isEmpty()) {
                     say("No more images to load left.");
                 }
-                IResource res = parent.queue.take();
-                say("Found a res: " + res);
+                ResourceLoadJob job = parent.queue.take();
                 
-                //Thread.sleep(10000);
+                IResource res = job.resource.orElse(getResource(job.resourceLocation.get()));
                 
                 if(!parent.map.containsKey(res)) {
                 
@@ -39,19 +41,48 @@ class TextureLoaderThread extends Thread {
                         e.printStackTrace();
                     }
                     
+                    if(img == null) {
+                    	System.out.println("wait what");
+                    }
                     parent.map.put(res, img);
                     
                     
-                        if(parent.waitingOn.isPresent() && parent.waitingOn.get().equals(res)) {
-                            synchronized(parent.waitingOn) {
-                            parent.waitingOn.notify();
-                        }
-                    }
+                	notifyIfWaitingOn(res);
                 } else {
                     //System.out.println("meh, I already loaded " + res);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+        }
+    }
+    
+    private IResource getResource(ResourceLocation resLoc) {
+    	if(parent.resMap.containsKey(resLoc)) {
+    		return parent.resMap.get(resLoc);
+    	} else {
+    		IResource res = null;
+			try {
+				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
+				parent.resMap.put(resLoc, res);
+				
+				notifyIfWaitingOn(resLoc);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+    		
+    		return res;
+    	}
+    }
+    
+    private void notifyIfWaitingOn(Object o) {
+    	if(parent.waitingOn.isPresent()) {
+            synchronized(parent.waitingOn) {
+            	ResourceLoadJob job = parent.waitingOn.get();
+            	if(o.equals(job.resource.orElse(null)) || o.equals(job.resourceLocation.orElse(null))) {
+            		parent.waitingOn.notify();
+            	}
             }
         }
     }

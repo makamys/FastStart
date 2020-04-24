@@ -13,6 +13,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.imageio.ImageIO;
 
+import java.util.Objects;
+
 import makamys.faststart.mixin.ITextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
@@ -20,12 +22,51 @@ import net.minecraft.util.ResourceLocation;
 
 public class ThreadedTextureLoader {
 	
+	static class ResourceLoadJob {
+		Optional<IResource> resource = Optional.empty();
+		Optional<ResourceLocation> resourceLocation = Optional.empty();
+		
+		public ResourceLoadJob(IResource res) {
+			this.resource = Optional.of(res);
+		}
+		
+		public ResourceLoadJob(ResourceLocation resLoc) {
+			this.resourceLocation = Optional.of(resLoc);
+		}
+		
+		public static ResourceLoadJob of(Object object){
+			if(object instanceof IResource) {
+				return new ResourceLoadJob((IResource)object);
+			} else if(object instanceof ResourceLocation) {
+				return new ResourceLoadJob((ResourceLocation)object);
+			} else {
+				return null; // uh oh
+			}
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			if(obj instanceof ResourceLoadJob) {
+				ResourceLoadJob o = (ResourceLoadJob)obj;
+				return Objects.equals(resource, o.resource) && Objects.equals(resourceLocation, o.resourceLocation);
+			} else {
+				return false;
+			}
+		}
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(resource, resourceLocation);
+		}
+	}
+	
 	List<TextureLoaderThread> threads = new ArrayList<>();
-    protected LinkedBlockingQueue<IResource> queue = new LinkedBlockingQueue<>();
+    protected LinkedBlockingQueue<ResourceLoadJob> queue = new LinkedBlockingQueue<>();
+    protected ConcurrentHashMap<ResourceLocation, IResource> resMap = new ConcurrentHashMap<>();
     protected ConcurrentHashMap<IResource, BufferedImage> map = new ConcurrentHashMap<>();
     
     protected IResource lastStreamedResource;
-    public static Optional<IResource> waitingOn = Optional.empty();
+    public static Optional<ResourceLoadJob> waitingOn = Optional.empty();
     
     public ThreadedTextureLoader(int numThreads) {
     	initThreads(numThreads);
@@ -43,7 +84,7 @@ public class ThreadedTextureLoader {
         lastStreamedResource = res;
     }
     
-    public void addSpriteLoadJobs(IResourceManager resman, Map mapRegisteredSprites, ITextureMap itx) {
+    public void addSpriteLoadJobs(Map mapRegisteredSprites, ITextureMap itx) {
         Iterator<Entry> iterator = itx.mapRegisteredSprites().entrySet().iterator();
         
         while(iterator.hasNext()) {
@@ -53,28 +94,30 @@ public class ThreadedTextureLoader {
                 ResourceLocation resLoc = new ResourceLocation((String)entry.getKey());
                 resLoc = itx.callCompleteResourceLocation(resLoc, 0);
                 
-                IResource iresource = resman.getResource(resLoc);
+                ResourceLoadJob job = new ResourceLoadJob(resLoc);
                 
-                if(!map.containsKey(iresource)) {
-                    addResourceLoadJob(iresource);
+                if(!map.containsKey(job)) {
+                	queue.add(job);
                 }
             } catch(Exception e) {}
         }
     }
     
-    private void addResourceLoadJob(IResource res) {
-        queue.add(res);
+    public BufferedImage fetchLastStreamedResource() {
+        return fetchFromMap(map, lastStreamedResource);
     }
     
-    public BufferedImage fetchLastStreamedResource() {
-        while(!map.containsKey(lastStreamedResource)) {
+    public IResource fetchResource(ResourceLocation loc) {
+    	return fetchFromMap(resMap, loc);
+    }
+    
+    public <K, V> V fetchFromMap(Map<K, V> map, K key){
+    	while(!map.containsKey(key)) {
             //System.out.println(lastStreamedResource + " hasn't been loaded yet, waiting...");
-            waitingOn = Optional.of(lastStreamedResource);
-            
-            
+            waitingOn = Optional.of(ResourceLoadJob.of(key));
             
             synchronized(waitingOn) {
-                queue.add(lastStreamedResource);
+                queue.add(ResourceLoadJob.of(key));
                 try {
                     waitingOn.wait();
                 } catch (InterruptedException e) {
@@ -85,6 +128,6 @@ public class ThreadedTextureLoader {
         }
         waitingOn = Optional.empty();
         //System.out.println("Returning " + lastStreamedResource + " fetched by thread");
-        return map.get(lastStreamedResource);
+        return map.get(key);
     }
 }

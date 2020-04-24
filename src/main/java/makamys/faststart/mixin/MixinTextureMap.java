@@ -25,42 +25,19 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
+import net.minecraft.util.ResourceLocation;
 
 @Mixin(TextureMap.class)
 public abstract class MixinTextureMap {
     @Shadow
     Map mapRegisteredSprites;
-    
-	/*@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
-            at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljava/io/File;)Ljava/awt/image/BufferedImage;"))
-    public BufferedImage redirectImageIORead(File file) throws IOException {
-	    //System.out.println("Running ImageIO.read redirector. file=" + file);
-        return ImageIO.read(file);
-    }
-	
-	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
-            at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljavax/imageio/stream/ImageInputStream;)Ljava/awt/image/BufferedImage;"))
-    public BufferedImage redirectImageIORead(ImageInputStream iis) throws IOException {
-        //System.out.println("Running ImageIO.read redirector. iis=" + iis);
-        return ImageIO.read(iis);
-    }*/
 	
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;read(Ljava/io/InputStream;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(InputStream is) throws IOException {
-        //System.out.println("Running ImageIO.read redirector. is=" + is);
         BufferedImage result = FastStart.instance.getTextureLoader().fetchLastStreamedResource();
-        //System.out.println("ImageIO.read redirector returning " + result);
         return result;
-        //return ImageIO.read(is);
-    }
-	
-	/*@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
-            at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;(Ljava/net/URL;)Ljava/awt/image/BufferedImage;"))
-    public BufferedImage redirectImageIORead(URL url) throws IOException {
-        //System.out.println("Running ImageIO.read redirector. url=" + url);
-        return ImageIO.read(url);
-    }*/
+    } 
 	
    @Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/IResource;getInputStream()Ljava/io/InputStream;"))
@@ -69,17 +46,17 @@ public abstract class MixinTextureMap {
         return res.getInputStream();
     }
 	
-    /*@Inject(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", at = @At("HEAD"))
-    private void onConstructed(IResourceManager resman, CallbackInfo ci) {
-        if(!skipFirst()) {
-            FastStart.instance.addSpriteLoadJobs(resman, mapRegisteredSprites, ((ITextureMap)this));
-        }
-    }*/
+	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/IResourceManager;getResource(Lnet/minecraft/util/ResourceLocation;)Lnet/minecraft/client/resources/IResource;"))
+    public IResource redirectGetResource(IResourceManager resMan, ResourceLocation loc) throws IOException {
+        return FastStart.instance.getTextureLoader().fetchResource(loc);
+    }
     
+    // TODO move to onTextureStitchedPre
     @Inject(method = "registerIcons()V", at = @At("RETURN"))
     private void afterRegisterIcons(CallbackInfo ci) {
         if(!skipFirst()) {
-            FastStart.instance.getTextureLoader().addSpriteLoadJobs(Minecraft.getMinecraft().getResourceManager(), mapRegisteredSprites, ((ITextureMap)this));
+            FastStart.instance.getTextureLoader().addSpriteLoadJobs(mapRegisteredSprites, ((ITextureMap)this));
         }
     }
     
