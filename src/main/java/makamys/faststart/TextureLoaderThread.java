@@ -49,7 +49,7 @@ class TextureLoaderThread extends Thread {
             				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
             				parent.resMap.put(resLoc, Failable.of(res));
             			} catch (IOException e) {
-            				System.err.print("hmm, couldn't load " + resLoc);
+            				say("hmm, couldn't load " + resLoc);
             				parent.resMap.put(resLoc, Failable.failed(e));
             				res = null;
             			}
@@ -66,11 +66,11 @@ class TextureLoaderThread extends Thread {
 	                        parent.map.put(res, Failable.of(img));
 	                    } catch (IOException e) {
 	                        img = null;
-	                        System.out.println("hmm, couldn't load image " + res);
+	                        say("hmm, couldn't load image " + res);
 	                        parent.map.put(res, Failable.failed(e));
 	                    }
 	                } else {
-	                    //System.out.println("meh, I already loaded " + res);
+	                    //say("meh, I already loaded " + res);
 	                }
                 	notifyIfWaitingOn(res);
                 }
