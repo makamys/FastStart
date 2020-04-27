@@ -23,8 +23,11 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.google.common.collect.EvictingQueue;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
@@ -66,6 +69,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	private WrappedMap<String, Class<?>> wrappedCachedClasses;
 	
 	private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
+	private final static int QUEUE_SIZE = 512;
+	private EvictingQueue<Pair<String, byte[]>> recentQueue = EvictingQueue.create(QUEUE_SIZE);
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
@@ -162,10 +167,24 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		
 		try {
 			if(cache.containsKey(transformedName)) {
-				result = cache.get(transformedName).get(); // yay, we have it cached
-				// classes are only loaded once, so no need to keep it around in RAM
-				cache.put(transformedName, Optional.empty());
 				superDebug("Yay, we have it cached!");
+				
+				if(cache.get(transformedName).isPresent()) { // we still remember it
+					result = cache.get(transformedName).get();
+					
+					// classes are only loaded once, so no need to keep it around in RAM
+					cache.put(transformedName, Optional.empty());
+					
+					// but keep it around in case it's needed again by another transformer in the chain
+					recentQueue.add(Pair.of(transformedName, result));
+				} else { // we have forgotten it, hopefully it's still around in the recent queue
+					for(Pair<String, byte[]> elem: recentQueue) {
+						if(elem.getKey().contentEquals(transformedName)) {
+							result = elem.getValue();
+						}
+					}
+					logger.error("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
+				}
 			} else {
 				// fall back to normal behavior..
 			    for (final IClassTransformer transformer : wrappedTransformers.original) {
