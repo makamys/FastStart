@@ -7,27 +7,24 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.common.collect.EvictingQueue;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
@@ -70,7 +67,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
 	private final static int QUEUE_SIZE = 512;
-	private EvictingQueue<Pair<String, byte[]>> recentQueue = EvictingQueue.create(QUEUE_SIZE);
+	Cache<String, byte[]> recentCache = CacheBuilder.newBuilder().maximumSize(QUEUE_SIZE).build();
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
@@ -79,6 +76,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	
 	private int lastSaveSize = 0;
+	private Queue<String> dirtyClasses = new ConcurrentLinkedQueue<String>();
 	
 	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
 		this.wrappedTransformers = wrappedTransformers;
@@ -122,8 +120,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	
 	private void saveCache() {
-		int size = cache.size();
-		if(size == lastSaveSize) {
+		int saveSize = lastSaveSize;
+		if(dirtyClasses.isEmpty()) {
 			return; // don't save if the cache hasn't changed
 		}
 		
@@ -135,15 +133,17 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             e1.printStackTrace();
         }
 		
-		logger.info("Saving class cache (size changed from " + lastSaveSize + " to " + size + ")");
-		try(DataOutputStream out = new DataOutputStream(new FileOutputStream(outFile))){
-		    
-			for(Entry<String, Optional<byte[]>> entry : cache.entrySet()) {
-			    if(entry.getValue().isPresent()) {
-					out.writeUTF(entry.getKey());
-					out.writeInt(entry.getValue().get().length);
-					out.write(entry.getValue().get());
-			    }
+		logger.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + dirtyClasses.size() + ")");
+		try(DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(outFile, true)))){
+			while(!dirtyClasses.isEmpty()) {
+				String name = dirtyClasses.remove();
+				Optional<byte[]> data = cache.get(name);
+		    	if(data != null && data.isPresent()) {
+		    		out.writeUTF(name);
+					out.writeInt(data.get().length);
+					out.write(data.get());
+					saveSize++;
+		    	}
 			}
 			logger.info("Saved class cache");
 		} catch (IOException e) {
@@ -152,7 +152,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 			e.printStackTrace();
 		}
 		
-		lastSaveSize = size;
+		lastSaveSize = saveSize;
 	}
 	
 	private String describeBytecode(byte[] basicClass) {
@@ -176,16 +176,15 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 					cache.put(transformedName, Optional.empty());
 					
 					// but keep it around in case it's needed again by another transformer in the chain
-					recentQueue.add(Pair.of(transformedName, result));
+					//recentCache.put(transformedName, result);
 				} else { // we have forgotten it, hopefully it's still around in the recent queue
-					for(Pair<String, byte[]> elem: recentQueue) {
-						if(elem.getKey().contentEquals(transformedName)) {
-							result = elem.getValue();
-						}
+					result = recentCache.getIfPresent(transformedName);
+					if(result == null) {
+						logger.error("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
 					}
-					logger.error("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
 				}
-			} else {
+			}
+			if(result == null){
 				// fall back to normal behavior..
 			    for (final IClassTransformer transformer : wrappedTransformers.original) {
 				    if(transformer == this) {
@@ -206,8 +205,12 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	            }
 			    if(basicClass != null) {
 			        cache.put(transformedName, Optional.of(basicClass)); // then cache it
+			        dirtyClasses.add(transformedName);
 			    }
 				result = basicClass;
+			}
+			if(result != null) {
+				recentCache.put(transformedName, result);
 			}
 		} catch(Exception e) {
 		    e.printStackTrace();
