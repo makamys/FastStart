@@ -2,6 +2,7 @@ package makamys.faststart;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.Objects;
 
 import makamys.faststart.mixin.ITextureMap;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
 
@@ -119,6 +121,8 @@ public class ThreadedTextureLoader {
     protected IResource lastStreamedResource;
     public static final List<ResourceLoadJob> waitingOn = new ArrayList<>(1);
     
+    private boolean hooked; // you'll be hooked on the brothers!
+    
     public ThreadedTextureLoader(int numThreads) {
     	initThreads(numThreads);
     }
@@ -188,5 +192,40 @@ public class ThreadedTextureLoader {
         waitingOn.clear();
         //System.out.println("Returning " + lastStreamedResource + " fetched by thread");
         return map.get(key);
+    }
+    
+    public void onTextureStitchPre(TextureMap map) {
+    	hooked = !skipFirst();
+    	if(hooked) {
+            addSpriteLoadJobs(((ITextureMap)map).mapRegisteredSprites(), ((ITextureMap)map));
+        }
+    }
+    
+    public void onTextureStitchPost(TextureMap tmap) {
+    	hooked = false;
+    	resMap.clear();
+    	map.clear();
+    	queue.clear();
+    	lastStreamedResource = null;
+    	waitingOn.clear();
+    }
+    
+    // Forge adds this, I think
+    private boolean skipFirst() {
+        try {
+            Field skipFirstField = TextureMap.class.getDeclaredField("skipFirst");
+            
+            skipFirstField.setAccessible(true);
+            
+            return (boolean)skipFirstField.get(this);
+        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    public boolean isHooked() {
+    	return hooked;
     }
 }

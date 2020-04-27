@@ -35,43 +35,35 @@ public abstract class MixinTextureMap {
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;read(Ljava/io/InputStream;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(InputStream is) throws IOException {
-        BufferedImage result = FastStart.instance.getTextureLoader().fetchLastStreamedResource();
-        return result;
+		
+		if(FastStart.instance.getTextureLoader().isHooked()) {
+	        BufferedImage result = FastStart.instance.getTextureLoader().fetchLastStreamedResource();
+	        return result;
+		} else {
+			return ImageIO.read(is);
+		}
     } 
 	
    @Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/IResource;getInputStream()Ljava/io/InputStream;"))
     public InputStream redirectGetInputStream(IResource res) throws IOException {
-        FastStart.instance.getTextureLoader().setLastStreamedResource(res);
-        return res.getInputStream();
+	   
+	   if(FastStart.instance.getTextureLoader().isHooked()) {
+	        FastStart.instance.getTextureLoader().setLastStreamedResource(res);
+	        return res.getInputStream();
+	   } else {
+		   return res.getInputStream();
+	   }
     }
 	
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/IResourceManager;getResource(Lnet/minecraft/util/ResourceLocation;)Lnet/minecraft/client/resources/IResource;"))
     public IResource redirectGetResource(IResourceManager resMan, ResourceLocation loc) throws IOException {
-        return FastStart.instance.getTextureLoader().fetchResource(loc);
-    }
-    
-    // TODO move to onTextureStitchedPre
-    @Inject(method = "registerIcons()V", at = @At("RETURN"))
-    private void afterRegisterIcons(CallbackInfo ci) {
-        if(!skipFirst()) {
-            FastStart.instance.getTextureLoader().addSpriteLoadJobs(mapRegisteredSprites, ((ITextureMap)this));
-        }
-    }
-    
-    // Forge adds this, I think
-    private boolean skipFirst() {
-        try {
-            Field skipFirstField = TextureMap.class.getDeclaredField("skipFirst");
-            
-            skipFirstField.setAccessible(true);
-            
-            return (boolean)skipFirstField.get(this);
-        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return false;
+		
+		if(FastStart.instance.getTextureLoader().isHooked()) {
+			return FastStart.instance.getTextureLoader().fetchResource(loc);
+		} else {
+			return resMan.getResource(loc);
+		}
     }
 }
