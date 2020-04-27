@@ -32,22 +32,25 @@ class TextureLoaderThread extends Thread {
                 IResource res = job.resource.orElse(null);
                 if(res == null) {
                 	ResourceLocation resLoc = job.resourceLocation.get();
-                	if(parent.resMap.containsKey(resLoc)) {
+                	// reusing res may be a bad idea since the stream gets stale
+                	if(false&&parent.resMap.containsKey(resLoc)) {
                 		res = parent.resMap.get(resLoc);
                 	} else {
             			try {
             				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
             				parent.resMap.put(resLoc, res);
             				
-            				notifyIfWaitingOn(resLoc);
+            				
             			} catch (IOException e) {
             				// TODO Auto-generated catch block
-            				e.printStackTrace();
+            				//e.printStackTrace();
+            				System.err.print("hmm, couldn't load " + resLoc);
             			}
+            			notifyIfWaitingOn(resLoc);
                 	}
                 }
                 
-                if(!parent.map.containsKey(res)) {
+                if(res != null && !parent.map.containsKey(res)) {
                 
                     BufferedImage img;
                     try {
@@ -58,15 +61,15 @@ class TextureLoaderThread extends Thread {
                     }
                     
                     if(img == null) {
-                    	System.out.println("wait what");
+                    	System.out.println("wait what, " + res + " is null");
+                    } else {
+                    	parent.map.put(res, img);
                     }
-                    parent.map.put(res, img);
                     
-                    
-                	notifyIfWaitingOn(res);
                 } else {
                     //System.out.println("meh, I already loaded " + res);
                 }
+                notifyIfWaitingOn(res);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -74,9 +77,9 @@ class TextureLoaderThread extends Thread {
     }
     
     private void notifyIfWaitingOn(Object o) {
-    	if(parent.waitingOn.isPresent()) {
-            synchronized(parent.waitingOn) {
-            	ResourceLoadJob job = parent.waitingOn.get();
+    	synchronized(parent.waitingOn) {
+    		if(!parent.waitingOn.isEmpty()) {
+            	ResourceLoadJob job = parent.waitingOn.get(0);
             	if(o.equals(job.resource.orElse(null)) || o.equals(job.resourceLocation.orElse(null))) {
             		parent.waitingOn.notify();
             	}

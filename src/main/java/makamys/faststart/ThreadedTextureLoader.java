@@ -62,7 +62,7 @@ public class ThreadedTextureLoader {
     protected ConcurrentHashMap<IResource, BufferedImage> map = new ConcurrentHashMap<>();
     
     protected IResource lastStreamedResource;
-    public static Optional<ResourceLoadJob> waitingOn = Optional.empty();
+    public static final List<ResourceLoadJob> waitingOn = new ArrayList<>(1);
     
     public ThreadedTextureLoader(int numThreads) {
     	initThreads(numThreads);
@@ -90,10 +90,12 @@ public class ThreadedTextureLoader {
                 ResourceLocation resLoc = new ResourceLocation((String)entry.getKey());
                 resLoc = itx.callCompleteResourceLocation(resLoc, 0);
                 
-                ResourceLoadJob job = new ResourceLoadJob(resLoc);
+                // if we reuse resources, this happens:
+                // Unexpected end of ZLIB input stream
+                resMap.clear();
                 
-                if(!map.containsKey(job)) {
-                	queue.add(job);
+                if(!map.containsKey(resLoc)) {
+                	queue.add(new ResourceLoadJob(resLoc));
                 }
             } catch(Exception e) {}
         }
@@ -108,21 +110,27 @@ public class ThreadedTextureLoader {
     }
     
     public <K, V> V fetchFromMap(Map<K, V> map, K key){
-    	while(!map.containsKey(key)) {
-            //System.out.println(lastStreamedResource + " hasn't been loaded yet, waiting...");
-            waitingOn = Optional.of(ResourceLoadJob.of(key));
+    	while(true) {
+    		synchronized(waitingOn) {
+    			if(map.containsKey(key)) {
+    				break;
+    			} else {
+    				//System.out.println(lastStreamedResource + " hasn't been loaded yet, waiting...");
+    	            waitingOn.add(ResourceLoadJob.of(key));
+    	            if(waitingOn.size() > 1) throw new IllegalStateException();
+    	            
+	                queue.add(ResourceLoadJob.of(key));
+	                try {
+	                    waitingOn.wait();
+	                } catch (InterruptedException e) {
+	                    
+	                }
+    	            //System.out.println("Woke up on " + lastStreamedResource);
+    			}
+    		}
             
-            synchronized(waitingOn) {
-                queue.add(ResourceLoadJob.of(key));
-                try {
-                    waitingOn.wait();
-                } catch (InterruptedException e) {
-                    
-                }
-            }
-            //System.out.println("Woke up on " + lastStreamedResource);
         }
-        waitingOn = Optional.empty();
+        waitingOn.clear();
         //System.out.println("Returning " + lastStreamedResource + " fetched by thread");
         return map.get(key);
     }
