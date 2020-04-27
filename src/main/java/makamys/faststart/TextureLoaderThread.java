@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
+import makamys.faststart.ThreadedTextureLoader.Failable;
 import makamys.faststart.ThreadedTextureLoader.ResourceLoadJob;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResource;
@@ -29,47 +30,50 @@ class TextureLoaderThread extends Thread {
                 }
                 ResourceLoadJob job = parent.queue.take();
                 
-                IResource res = job.resource.orElse(null);
-                if(res == null) {
+                IResource res;
+                if(job.resource.isPresent()) {
+                	res = job.resource.get();
+                } else {
                 	ResourceLocation resLoc = job.resourceLocation.get();
                 	// reusing res may be a bad idea since the stream gets stale
-                	if(false&&parent.resMap.containsKey(resLoc)) {
-                		res = parent.resMap.get(resLoc);
+                	boolean reuseRes = false;
+                	if(reuseRes && parent.resMap.containsKey(resLoc)) {
+                		Failable<IResource, IOException> resMaybe = parent.resMap.get(resLoc);
+                		if(resMaybe.present()) {
+                			res = resMaybe.get();
+                		} else {
+                			continue;
+                		}
                 	} else {
             			try {
             				res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
-            				parent.resMap.put(resLoc, res);
-            				
-            				
+            				parent.resMap.put(resLoc, Failable.of(res));
             			} catch (IOException e) {
-            				// TODO Auto-generated catch block
-            				//e.printStackTrace();
             				System.err.print("hmm, couldn't load " + resLoc);
+            				parent.resMap.put(resLoc, Failable.failed(e));
+            				res = null;
             			}
             			notifyIfWaitingOn(resLoc);
                 	}
                 }
                 
-                if(res != null && !parent.map.containsKey(res)) {
-                
-                    BufferedImage img;
-                    try {
-                        img = ImageIO.read(res.getInputStream());
-                    } catch (IOException e) {
-                        img = null;
-                        e.printStackTrace();
-                    }
-                    
-                    if(img == null) {
-                    	System.out.println("wait what, " + res + " is null");
-                    } else {
-                    	parent.map.put(res, img);
-                    }
-                    
-                } else {
-                    //System.out.println("meh, I already loaded " + res);
+                if(res != null) {
+                	if(!parent.map.containsKey(res)) {
+	                
+	                    BufferedImage img;
+	                    try {
+	                        img = ImageIO.read(res.getInputStream());
+	                        parent.map.put(res, Failable.of(img));
+	                    } catch (IOException e) {
+	                        img = null;
+	                        System.out.println("hmm, couldn't load image " + res);
+	                        parent.map.put(res, Failable.failed(e));
+	                    }
+	                } else {
+	                    //System.out.println("meh, I already loaded " + res);
+	                }
+                	notifyIfWaitingOn(res);
                 }
-                notifyIfWaitingOn(res);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

@@ -1,10 +1,12 @@
 package makamys.faststart;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,10 +58,63 @@ public class ThreadedTextureLoader {
 		}
 	}
 	
+	/**
+	 * Contains an object, or an exception that was encountered when trying to
+	 * construct the object.
+	 */
+	static class Failable<T, E extends Exception> {
+		private Optional<T> thing = null;
+		private E exception = null;
+		
+		public Failable(T thing) {
+			this.thing = Optional.ofNullable(thing);
+		}
+		
+		public Failable(E e) {
+			this.exception = e;
+		}
+		
+		public T get() {
+			if(thing == null) {
+				throw new NoSuchElementException();
+			} else {
+				return thing.orElse(null);
+			}
+		}
+		
+		public T getOrThrow() throws E {
+			if(exception != null) {
+				throw exception;
+			} else {
+				return get();
+			}
+		}
+		
+		public boolean present() {
+			return thing != null;
+		}
+		
+		public boolean failed() {
+			return exception != null;
+		}
+		
+		public Exception getException() {
+			return exception;
+		}
+		
+		public static <T, E extends Exception> Failable<T, E> of(T thing){
+			return new Failable<T, E>(thing);
+		}
+		
+		public static <T, E extends Exception> Failable<T, E> failed(E e){
+			return new Failable<T, E>(e);
+		}
+	}
+	
 	List<TextureLoaderThread> threads = new ArrayList<>();
     protected LinkedBlockingQueue<ResourceLoadJob> queue = new LinkedBlockingQueue<>();
-    protected ConcurrentHashMap<ResourceLocation, IResource> resMap = new ConcurrentHashMap<>();
-    protected ConcurrentHashMap<IResource, BufferedImage> map = new ConcurrentHashMap<>();
+    protected ConcurrentHashMap<ResourceLocation, Failable<IResource, IOException>> resMap = new ConcurrentHashMap<>();
+    protected ConcurrentHashMap<IResource, Failable<BufferedImage, IOException>> map = new ConcurrentHashMap<>();
     
     protected IResource lastStreamedResource;
     public static final List<ResourceLoadJob> waitingOn = new ArrayList<>(1);
@@ -101,12 +156,12 @@ public class ThreadedTextureLoader {
         }
     }
     
-    public BufferedImage fetchLastStreamedResource() {
-        return fetchFromMap(map, lastStreamedResource);
+    public BufferedImage fetchLastStreamedResource() throws IOException {
+        return fetchFromMap(map, lastStreamedResource).getOrThrow();
     }
     
-    public IResource fetchResource(ResourceLocation loc) {
-    	return fetchFromMap(resMap, loc);
+    public IResource fetchResource(ResourceLocation loc) throws IOException {
+    	return fetchFromMap(resMap, loc).getOrThrow();
     }
     
     public <K, V> V fetchFromMap(Map<K, V> map, K key){
