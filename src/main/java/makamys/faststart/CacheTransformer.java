@@ -40,7 +40,7 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-public class CacheTransformer implements IClassTransformer, ListAddListener<IClassTransformer>, MapAddListener<String, Class<?>> {
+public class CacheTransformer implements IClassTransformer, MapAddListener<String, Class<?>> {
 	
 	private static final Logger logger = LogManager.getLogger("faststart");
 	
@@ -72,7 +72,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		}
 	}
 	
-	private AddListenableListView<IClassTransformer> wrappedTransformers;
+	private WrappedTransformerList<IClassTransformer> wrappedTransformers;
 	private WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
 	
 	private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
@@ -89,7 +89,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	private int lastSaveSize = 0;
 	private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
 	
-	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses) {
+	public CacheTransformer(List<IClassTransformer> transformers, WrappedTransformerList<IClassTransformer> wrappedTransformers, WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses) {
 		logger.info("Initializing cache transformer");
 		
 		this.wrappedTransformers = wrappedTransformers;
@@ -250,7 +250,6 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	
 	private void saveCache() {
-		int saveSize = lastSaveSize;
 		if(dirtyClasses.isEmpty()) {
 			return; // don't save if the cache hasn't changed
 		}
@@ -372,10 +371,10 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             transformersField.setAccessible(true);
             List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
             
-            AddListenableListView<IClassTransformer> listenableTransformers = 
-            		new AddListenableListView<IClassTransformer>(transformers);
+            WrappedTransformerList<IClassTransformer> wrappedTransformers = 
+            		new WrappedTransformerList<IClassTransformer>(transformers);
             
-            transformersField.set(lcl, listenableTransformers);
+            transformersField.set(lcl, wrappedTransformers);
 
             
             Field cachedClassesField = LaunchClassLoader.class.getDeclaredField("cachedClasses");
@@ -387,12 +386,9 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             cachedClassesField.set(lcl, wrappedCachedClasses);
             
             
-            cacheTransformer = new CacheTransformer(transformers, listenableTransformers, wrappedCachedClasses);
+            cacheTransformer = new CacheTransformer(transformers, wrappedTransformers, wrappedCachedClasses);
             
-            listenableTransformers.addListener(cacheTransformer);
-            
-            
-            listenableTransformers.alt = cacheTransformer;
+            wrappedTransformers.alt = cacheTransformer;
             
             System.out.println("Finished initializing cache transformer");
         } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
@@ -400,16 +396,6 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             e.printStackTrace();
         }
     	return cacheTransformer;
-	}
-
-	@Override
-	public void onElementAdded(int index, IClassTransformer addedElement) {
-		
-	}
-
-	@Override
-	public void beforeIterator() {
-		
 	}
 	
 	@Override
