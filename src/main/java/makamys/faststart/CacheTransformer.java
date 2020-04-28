@@ -9,9 +9,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,13 +22,18 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+import cpw.mods.fml.relauncher.ModListHelper;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
@@ -79,11 +87,107 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	private Queue<String> dirtyClasses = new ConcurrentLinkedQueue<String>();
 	
 	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
+		logger.info("Initializing cache transformer");
+		
 		this.wrappedTransformers = wrappedTransformers;
 		this.wrappedCachedClasses = wrappedCachedClasses;
 		
-		loadCache();
+		if(modsChanged()) {
+			clearCache();
+		} else {
+			loadCache();
+		}
 		saveThread.start();
+	}
+	
+	private void clearCache() {
+		logger.info("Mods changed, rebuilding class cache.");
+		FastStart.getDataFile("classCache.dat").delete();
+	}
+	
+	private List<File> findMods(){
+		File modsDir = new File(Launch.minecraftHome, "mods");
+		File versionedModsDir = new File(modsDir, ExampleMod.MCVERSION);
+		
+		List<File> mods = new ArrayList<File>();
+		
+		for(File dir : Arrays.asList(modsDir, versionedModsDir)) {
+			if(dir.isDirectory()) {
+				mods.addAll(Arrays.asList(
+						modsDir.listFiles(x -> x.getName().endsWith(".jar") 
+										|| x.getName().endsWith(".litemod"))));
+			}
+		}
+		
+		mods.addAll(ModListHelper.additionalMods.values());
+		return mods;
+	}
+	
+	private boolean modsChanged() {
+		boolean changed = false;
+		
+		File previousFile = FastStart.getDataFile("mods-previous.txt");
+		
+		Set<Pair<File, Long>> modFiles = findMods().stream()
+				.map(f -> Pair.of(f, f.lastModified())).collect(Collectors.toSet());
+		
+		Set<Pair<File, Long>> previousModFiles = new HashSet<>();
+		if(previousFile.exists()) {
+			try {
+				List<String> lines = FileUtils.readLines(previousFile);
+				File lastFile = null;
+				for(String line : lines) {
+					if(lastFile == null) {
+						lastFile = new File(line);
+					} else {
+						previousModFiles.add(Pair.of(lastFile, Long.parseLong(line)));
+						lastFile = null;
+					}
+				}
+				
+			} catch (Exception e1) {
+				logger.warn("Failed to load mod list");
+				e1.printStackTrace();
+			}
+		}
+		
+		changed = previousModFiles.size() != modFiles.size() ||
+				!filesMatch(	previousModFiles.stream().sorted().iterator(), modFiles.stream().sorted().iterator());
+		
+		try {
+			FileUtils.writeStringToFile(
+				previousFile, 
+				String.join("\n", modFiles.stream()
+						.map(p -> p.getKey().getPath() + "\n" + p.getValue())
+						.collect(Collectors.toList())));
+		} catch (IOException e) {
+			logger.warn("Failed to save mod list");
+			e.printStackTrace();
+		}
+		
+		return changed;
+	}
+	
+	private boolean filesMatch(Iterator<Pair<File, Long>> aIt, Iterator<Pair<File, Long>> bIt) {
+		while(aIt.hasNext()) {
+			Pair<File, Long> a = aIt.next(), b = bIt.next();
+			
+			File fileA = a.getKey(), fileB = b.getKey();
+			long dateA = a.getValue(), dateB = b.getValue();
+			if(!fileA.equals(fileB) || (dateA != dateB && !Arrays.equals(calculateHash(fileA), calculateHash(fileB)))) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	private byte[] calculateHash(File f) {
+		try(InputStream is = new BufferedInputStream(new FileInputStream(f))){
+			return DigestUtils.md5(is);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return new byte[] {};
 	}
 	
 	private void loadCache() {

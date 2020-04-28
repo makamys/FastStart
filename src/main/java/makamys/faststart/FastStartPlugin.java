@@ -6,7 +6,9 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
+import cpw.mods.fml.relauncher.IFMLLoadingPlugin.MCVersion;
 
+@MCVersion(ExampleMod.MCVERSION)
 public class FastStartPlugin implements IFMLLoadingPlugin {
     
     public FastStartPlugin(){
