@@ -135,44 +135,32 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	private boolean modsChanged() {
 		boolean changed = false;
 		
-		File previousFile = FastStart.getDataFile("mods-previous.txt");
+		Persistence.loadIfNotLoadedAlready();
 		
 		Set<Pair<File, Long>> modFiles = findMods().stream()
 				.map(f -> Pair.of(f, f.lastModified())).collect(Collectors.toSet());
 		
 		Set<Pair<File, Long>> previousModFiles = new HashSet<>();
-		if(previousFile.exists()) {
-			try {
-				List<String> lines = FileUtils.readLines(previousFile);
-				File lastFile = null;
-				for(String line : lines) {
-					if(lastFile == null) {
-						lastFile = new File(line);
-					} else {
-						previousModFiles.add(Pair.of(lastFile, Long.parseLong(line)));
-						lastFile = null;
-					}
-				}
-				
-			} catch (Exception e1) {
-				logger.warn("Failed to load mod list");
-				e1.printStackTrace();
+		
+		List<String> lines = Arrays.asList(Persistence.lastMods.split("\n"));
+		File lastFile = null;
+		for(String line : lines) {
+			if(lastFile == null) {
+				lastFile = new File(line);
+			} else {
+				previousModFiles.add(Pair.of(lastFile, Long.parseLong(line)));
+				lastFile = null;
 			}
 		}
 		
 		changed = previousModFiles.size() != modFiles.size() ||
 				!filesMatch(	previousModFiles.stream().sorted().iterator(), modFiles.stream().sorted().iterator());
 		
-		try {
-			FileUtils.writeStringToFile(
-				previousFile, 
-				String.join("\n", modFiles.stream()
-						.map(p -> p.getKey().getPath() + "\n" + p.getValue())
-						.collect(Collectors.toList())));
-		} catch (IOException e) {
-			logger.warn("Failed to save mod list");
-			e.printStackTrace();
-		}
+		Persistence.lastMods = String.join("\n", modFiles.stream()
+				.map(p -> p.getKey().getPath() + "\n" + p.getValue())
+				.collect(Collectors.toList()));
+		Persistence.save();
+	
 		
 		return changed;
 	}
