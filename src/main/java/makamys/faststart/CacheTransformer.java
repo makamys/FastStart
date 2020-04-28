@@ -13,25 +13,26 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.io.Files;
 
 import cpw.mods.fml.relauncher.ModListHelper;
 import net.minecraft.launchwrapper.IClassTransformer;
@@ -85,7 +86,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	
 	private int lastSaveSize = 0;
-	private Queue<String> dirtyClasses = new ConcurrentLinkedQueue<String>();
+	private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
 	
 	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
 		logger.info("Initializing cache transformer");
@@ -193,19 +194,26 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		if(inFile.exists()) {
 			logger.info("Loading class cache.");
 			cache.clear();
+			
+			boolean foundCorruption = false;
+			
 			try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(inFile)))){
-				
 				try {
 					while(true) { // EOFException should break the loop
 						String className = in.readUTF();
 						int classLength = in.readInt();
 						byte[] classData = new byte[classLength];
-						in.read(classData, 0, classLength);
+						int bytesRead = in.read(classData, 0, classLength);
 						
-						cache.put(className, Optional.of(classData));
-						wrappedCachedClasses.setBlackList(cache.keySet());
-						
-						superDebug("Loaded " + className);
+						if(bytesRead == classLength) {
+							cache.put(className, Optional.of(classData));
+							wrappedCachedClasses.setBlackList(cache.keySet());
+							
+							superDebug("Loaded " + className);
+						} else {
+							logger.warn("Length of " + className + " doesn't match advertised length. Skipping.");
+							foundCorruption = true;
+						}
 					}
 				} catch(EOFException eof) {}
 			} catch (IOException e) {
@@ -215,8 +223,28 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 			logger.info("Loaded " + cache.size() + " cached classes.");
 			
 			lastSaveSize = cache.size();
+			
+			if(foundCorruption) {
+				logger.warn("There was data corruption present in the cache file. Doing full save to restore integrity.");
+				saveCacheFully();
+			}
 		} else {
 			logger.info("Couldn't find class cache file");
+		}
+	}
+	
+	private void saveCacheFully() {
+		File outFile = FastStart.getDataFile("classCache.dat");
+		File outFileTmp = FastStart.getDataFile("classCache.dat~");
+		
+		logger.info("Performing full save of class cache (size: " + cache.size() + ")");
+		saveCacheChunk(cache.keySet(), outFileTmp, false);
+		
+		try {
+			Files.move(outFileTmp, outFile);
+		} catch (IOException e) {
+			logger.error("Failed to finish saving class cache");
+			e.printStackTrace();
 		}
 	}
 	
@@ -234,16 +262,23 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             e1.printStackTrace();
         }
 		
-		logger.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + dirtyClasses.size() + ")");
-		try(DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(outFile, true)))){
-			while(!dirtyClasses.isEmpty()) {
-				String name = dirtyClasses.remove();
+		List<String> classesToSave = new ArrayList<String>();
+		dirtyClasses.drainTo(classesToSave);
+		
+		logger.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + classesToSave.size() + ")");
+		saveCacheChunk(classesToSave, outFile, true);
+		
+		lastSaveSize += classesToSave.size();
+	}
+	
+	private void saveCacheChunk(Collection<String> classesToSave, File outFile, boolean append) {
+		try(DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(outFile, append)))){
+			for(String name : classesToSave) {
 				Optional<byte[]> data = cache.get(name);
 		    	if(data != null && data.isPresent()) {
 		    		out.writeUTF(name);
 					out.writeInt(data.get().length);
 					out.write(data.get());
-					saveSize++;
 		    	}
 			}
 			logger.info("Saved class cache");
@@ -252,8 +287,6 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		lastSaveSize = saveSize;
 	}
 	
 	private String describeBytecode(byte[] basicClass) {
