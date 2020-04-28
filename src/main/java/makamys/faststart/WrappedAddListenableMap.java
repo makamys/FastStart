@@ -1,20 +1,22 @@
 package makamys.faststart;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class WrappedMap<K, V> implements Map<K, V> {
+public class WrappedAddListenableMap<K, V> implements Map<K, V> {
     
+	public static interface MapAddListener<K, V> {
+		boolean onPut(Map<K, V> delegateMap, K key, V value);
+	}
+	
     private Map<K, V> o;
     
-    private Set<String> blacklist;
+    private List<MapAddListener<K, V>> listeners = new ArrayList<>();
     
-    public void setBlackList(Set<String> blacklist) {
-        this.blacklist = blacklist;
-    }
-    
-    public WrappedMap(Map<K, V> original) {
+    public WrappedAddListenableMap(Map<K, V> original) {
         this.o = original;
     }
     
@@ -55,18 +57,15 @@ public class WrappedMap<K, V> implements Map<K, V> {
 
     @Override
     public V put(K key, V value) {
-        /* Explanation: When we're loading cached classes, mixin gives an error because it thinks it's going to
-           have to run on already transformed classes. This doesn't actually happen, since CacheTransformer
-           steals the transformation right from all other classes, including Mixin. But we need to bypass
-           this error somehow, since it results in a crash. This is how we do it. (see MixinInfo.readTargets
-           to see why it works)*/ 
-        if(blacklist != null && blacklist.contains(key)) {
-            return null;
-        } else {
-            // For some reason mixin gives a different error if we always refuse to put, so we should only
-            // do it when necessary.
-            return o.put(key, value);
-        }
+    	boolean blocked = false;
+    	for(MapAddListener<K, V> l : listeners) {
+    		if(!l.onPut(o, key, value)) {
+    			blocked = true;
+    			break;
+    		}
+    	}
+    	
+		return blocked ? null : o.put(key, value);
     }
 
     @Override
@@ -89,6 +88,12 @@ public class WrappedMap<K, V> implements Map<K, V> {
         return o.values();
     }
     
+    public void addListener(MapAddListener<K, V> l) {
+    	listeners.add(l);
+    }
     
+    public void removeListener(MapAddListener<K, V> l) {
+    	listeners.remove(l);
+    }
     
 }

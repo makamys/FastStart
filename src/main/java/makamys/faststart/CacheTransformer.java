@@ -35,11 +35,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.io.Files;
 
 import cpw.mods.fml.relauncher.ModListHelper;
+import makamys.faststart.WrappedAddListenableMap.MapAddListener;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
-public class CacheTransformer implements IClassTransformer, ListAddListener<IClassTransformer> {
+public class CacheTransformer implements IClassTransformer, ListAddListener<IClassTransformer>, MapAddListener<String, Class<?>> {
 	
 	private static final Logger logger = LogManager.getLogger("faststart");
 	
@@ -72,7 +73,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	
 	private AddListenableListView<IClassTransformer> wrappedTransformers;
-	private WrappedMap<String, Class<?>> wrappedCachedClasses;
+	private WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
 	
 	private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
 	private final static int QUEUE_SIZE = 512;
@@ -88,11 +89,12 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	private int lastSaveSize = 0;
 	private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
 	
-	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedMap<String, Class<?>> wrappedCachedClasses) {
+	public CacheTransformer(List<IClassTransformer> transformers, AddListenableListView<IClassTransformer> wrappedTransformers, WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses) {
 		logger.info("Initializing cache transformer");
 		
 		this.wrappedTransformers = wrappedTransformers;
 		this.wrappedCachedClasses = wrappedCachedClasses;
+		wrappedCachedClasses.addListener(this);
 		
 		if(isDevEnvironment() || modsChanged()) {
 			clearCache(isDevEnvironment() ? "this is a dev environment." : "mods have changed.");
@@ -207,7 +209,6 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 						
 						if(bytesRead == classLength) {
 							cache.put(className, Optional.of(classData));
-							wrappedCachedClasses.setBlackList(cache.keySet());
 							
 							superDebug("Loaded " + className);
 						} else {
@@ -382,12 +383,11 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
             Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>)cachedClassesField.get(lcl);
             //cachedClasses.clear(); // gotta do this to make Mixin happy
             
-            WrappedMap<String, Class<?>> wrappedCachedClasses = new WrappedMap<String, Class<?>>(cachedClasses);
+            WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses = new WrappedAddListenableMap<String, Class<?>>(cachedClasses);
             cachedClassesField.set(lcl, wrappedCachedClasses);
             
             
             cacheTransformer = new CacheTransformer(transformers, listenableTransformers, wrappedCachedClasses);
-            
             
             listenableTransformers.addListener(cacheTransformer);
             
@@ -410,6 +410,22 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	@Override
 	public void beforeIterator() {
 		
+	}
+	
+	@Override
+	public boolean onPut(Map<String, Class<?>> delegateMap, String key, Class<?> value) {
+		/* Explanation: When we're loading cached classes, mixin gives an error because it thinks it's going to
+        have to run on already transformed classes. This doesn't actually happen, since CacheTransformer
+        steals the transformation right from all other classes, including Mixin. But we need to bypass
+        this error somehow, since it results in a crash. This is how we do it. (see MixinInfo.readTargets
+        to see why it works)*/ 
+     if(cache.keySet().contains(key)) {
+         return false;
+     } else {
+         // For some reason mixin gives a different error if we always refuse to put, so we should only
+         // do it when necessary.
+         return true;
+     }
 	}
 
 }
