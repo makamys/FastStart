@@ -35,7 +35,6 @@ public abstract class MixinTextureMap {
 	@Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;read(Ljava/io/InputStream;)Ljava/awt/image/BufferedImage;"))
     public BufferedImage redirectImageIORead(InputStream is) throws IOException {
-		
 		if(FastStart.instance.getTextureLoader().isHooked()) {
 	        BufferedImage result = FastStart.instance.getTextureLoader().fetchLastStreamedResource();
 	        return result;

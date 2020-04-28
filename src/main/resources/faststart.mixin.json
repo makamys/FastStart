@@ -9,5 +9,6 @@
         "ITextureMap",
         "MixinFolderResourcePack",
         "MixinDefaultResourcePack"
-    ]
+    ],
+    "plugin": "makamys.faststart.MixinConfigPlugin"
 }

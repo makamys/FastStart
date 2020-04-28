@@ -9,9 +9,9 @@ public class Config {
 	
 	private static Configuration cfg;
 
-	public static boolean useThreadedTextureLoader; // TODO
+	public static boolean useThreadedTextureLoader;
 	public static boolean useCacheTransformer;
-	public static boolean useFolderTexturePackOptimization; // TODO
+	public static boolean useFolderTexturePackOptimization;
 
 	public static int textureLoaderThreadCount;
 
