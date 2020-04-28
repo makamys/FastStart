@@ -192,7 +192,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	}
 	
 	private void loadCache() {
-		File inFile = new File(Launch.minecraftHome, "classCache.dat");
+		File inFile = FastStart.getDataFile("classCache.dat");
 		
 		if(inFile.exists()) {
 			logger.info("Loading class cache.");
@@ -230,7 +230,7 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 			return; // don't save if the cache hasn't changed
 		}
 		
-		File outFile = new File(Launch.minecraftHome, "classCache.dat");
+		File outFile = FastStart.getDataFile("classCache.dat");
 		try {
             outFile.createNewFile();
         } catch (IOException e1) {
