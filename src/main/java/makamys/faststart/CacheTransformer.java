@@ -79,7 +79,8 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
-	private Set<String> badTransformers = new HashSet<>(Arrays.asList("org.spongepowered.asm.mixin.transformer.Proxy", "appeng.transformer.asm.ApiRepairer"));
+	private Set<String> badTransformers = 
+			new HashSet<>(Arrays.stream(Config.badTransformers.split(",")).collect(Collectors.toList()));
 	
 	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	

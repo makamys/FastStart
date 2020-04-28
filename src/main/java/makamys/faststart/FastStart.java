@@ -16,9 +16,15 @@ public class FastStart {
     
     
     public void init(){
-    	textureLoader = new ThreadedTextureLoader(4);
+    	Config.loadIfNotLoadedAlready();
+    	
+    	textureLoader = new ThreadedTextureLoader(
+    			Config.textureLoaderThreadCount != 0 ? Config.textureLoaderThreadCount
+    					: Runtime.getRuntime().availableProcessors());
         
-        cacheTransformer = CacheTransformer.register();
+    	if(Config.useCacheTransformer) {
+    		cacheTransformer = CacheTransformer.register();
+    	}
     }
     
     public static File getDataFile(String name) {
