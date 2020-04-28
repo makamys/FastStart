@@ -13,6 +13,9 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Objects;
 
 import makamys.faststart.mixin.ITextureMap;
@@ -113,6 +116,8 @@ public class ThreadedTextureLoader {
 		}
 	}
 	
+	private static final Logger logger = LogManager.getLogger("faststart");
+	
 	List<TextureLoaderThread> threads = new ArrayList<>();
     protected LinkedBlockingQueue<ResourceLoadJob> queue = new LinkedBlockingQueue<>();
     protected ConcurrentHashMap<ResourceLocation, Failable<IResource, IOException>> resMap = new ConcurrentHashMap<>();
@@ -125,6 +130,7 @@ public class ThreadedTextureLoader {
     
     public ThreadedTextureLoader(int numThreads) {
     	initThreads(numThreads);
+    	logger.info("Initialized threaded texture loader with " + numThreads + " threads.");
     }
     
     private void initThreads(int numThreads) {
