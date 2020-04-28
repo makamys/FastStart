@@ -93,16 +93,24 @@ public class CacheTransformer implements IClassTransformer, ListAddListener<ICla
 		this.wrappedTransformers = wrappedTransformers;
 		this.wrappedCachedClasses = wrappedCachedClasses;
 		
-		if(modsChanged()) {
-			clearCache();
+		if(isDevEnvironment() || modsChanged()) {
+			clearCache(isDevEnvironment() ? "this is a dev environment." : "mods have changed.");
 		} else {
 			loadCache();
 		}
 		saveThread.start();
 	}
 	
-	private void clearCache() {
-		logger.info("Mods changed, rebuilding class cache.");
+	private static boolean isDevEnvironment() {
+		try {
+			return Launch.classLoader.getClassBytes("net.minecraft.world.World") != null;
+		} catch (IOException e) {
+			return false;
+		}
+	}
+	
+	private void clearCache(String reason) {
+		logger.info("Rebuilding class cache, because " + reason);
 		FastStart.getDataFile("classCache.dat").delete();
 	}
 	
