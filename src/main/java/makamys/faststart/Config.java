@@ -16,6 +16,7 @@ public class Config {
 	public static int textureLoaderThreadCount;
 
 	public static String badTransformers;
+	public static String badClasses;
 	public static int recentCacheSize;
 	
 	public static void loadIfNotLoadedAlready() {
@@ -50,6 +51,8 @@ public class Config {
 				"To solve this, our transformer will restore the view of the transformer chain while these transformers are running.\n" + 
 				"\n" + 
 				"If you see another transformer's name in your crash log, adding it to this list may solve the problem.");
+		badClasses = cfg.getString("badClasses", "cacheTransformer", "net.eq2online.macros.permissions.MacroModPermissions", 
+				"Sometimes caching classes can cause problems. Classes in this list will not be cached.");
 		recentCacheSize = cfg.getInt("recentCacheSize", "cacheTransformer", 512, -1, Integer.MAX_VALUE, 
 				"Cached class bytecode is removed from memory after being used, but the most recent N are kept around\n" +
 				"because the same class is often transformed more than once. This option sets the value of that N.\n" +

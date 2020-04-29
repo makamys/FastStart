@@ -84,6 +84,8 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	
 	private Set<String> badTransformers = 
 			new HashSet<>(Arrays.stream(Config.badTransformers.split(",")).collect(Collectors.toList()));
+	private Set<String> badClasses = 
+			new HashSet<>(Arrays.stream(Config.badClasses.split(",")).collect(Collectors.toList()));
 	
 	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
 	
@@ -301,7 +303,8 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	    superDebug(String.format("Starting loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		
 		try {
-			if(cache.containsKey(transformedName)) {
+			boolean dontCache = badClasses.contains(transformedName);
+			if(cache.containsKey(transformedName) && !dontCache) {
 				superDebug("Yay, we have it cached!");
 				
 				if(cache.get(transformedName).isPresent()) { // we still remember it
@@ -340,13 +343,13 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	                    wrappedTransformers.alt = this; // reappear
 	                }
 	            }
-			    if(basicClass != null) {
+			    if(basicClass != null && !dontCache) {
 			        cache.put(transformedName, Optional.of(basicClass)); // then cache it
 			        dirtyClasses.add(transformedName);
 			    }
 				result = basicClass;
 			}
-			if(result != null && recentCache.isPresent()) {
+			if(result != null && recentCache.isPresent() && !dontCache) {
 				recentCache.get().put(transformedName, result);
 			}
 		} catch(Exception e) {
