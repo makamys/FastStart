@@ -347,10 +347,11 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				recentCache.put(transformedName, result);
 			}
 		} catch(Exception e) {
-		    e.printStackTrace();
+			throw e; // pass it to LaunchClassLoader, who will handle it
+		} finally {
+			wrappedTransformers.alt = this;
 		}
 
-		wrappedTransformers.alt = this;
 	    superDebug(String.format("Finished loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		return result;
 	}
