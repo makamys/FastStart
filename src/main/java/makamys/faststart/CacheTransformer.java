@@ -314,7 +314,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				} else { // we have forgotten it, hopefully it's still around in the recent queue
 					result = recentCache.getIfPresent(transformedName);
 					if(result == null) {
-						logger.error("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
+						logger.warn("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
 					}
 				}
 			}
