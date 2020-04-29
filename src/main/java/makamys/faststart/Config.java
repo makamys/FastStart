@@ -16,6 +16,7 @@ public class Config {
 	public static int textureLoaderThreadCount;
 
 	public static String badTransformers;
+	public static int recentCacheSize;
 	
 	public static void loadIfNotLoadedAlready() {
 		if(cfg != null) return;
@@ -48,7 +49,11 @@ public class Config {
 				"This creates conflicts with certain other transformers which also access the transformer chain.\n" + 
 				"To solve this, our transformer will restore the view of the transformer chain while these transformers are running.\n" + 
 				"\n" + 
-				"If you see another transformer's name in your crash log, adding it to this list may solve the problem.");		
+				"If you see another transformer's name in your crash log, adding it to this list may solve the problem.");
+		recentCacheSize = cfg.getInt("recentCacheSize", "cacheTransformer", 512, -1, Integer.MAX_VALUE, 
+				"Cached class bytecode is removed from memory after being used, but the most recent N are kept around\n" +
+				"because the same class is often transformed more than once. This option sets the value of that N.\n" +
+				"(Set to -1 to keep class bytecode in RAM forever)");
 		
 		if(cfg.hasChanged()) {
 			cfg.save();

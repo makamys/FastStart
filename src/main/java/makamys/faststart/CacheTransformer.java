@@ -76,8 +76,9 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	private WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
 	
 	private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
-	private final static int QUEUE_SIZE = 512;
-	Cache<String, byte[]> recentCache = CacheBuilder.newBuilder().maximumSize(QUEUE_SIZE).build();
+	private final static int QUEUE_SIZE = Config.recentCacheSize;
+	Optional<Cache<String, byte[]>> recentCache = QUEUE_SIZE < 0 ? Optional.empty() :
+		Optional.of(CacheBuilder.newBuilder().maximumSize(QUEUE_SIZE).build());
 	
 	private SaveThread saveThread = new SaveThread(this);
 	
@@ -306,13 +307,15 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				if(cache.get(transformedName).isPresent()) { // we still remember it
 					result = cache.get(transformedName).get();
 					
-					// classes are only loaded once, so no need to keep it around in RAM
-					cache.put(transformedName, Optional.empty());
-					
-					// but keep it around in case it's needed again by another transformer in the chain
-					//recentCache.put(transformedName, result);
-				} else { // we have forgotten it, hopefully it's still around in the recent queue
-					result = recentCache.getIfPresent(transformedName);
+					if(recentCache.isPresent()) {
+						// classes are only loaded once, so no need to keep it around in RAM
+						cache.put(transformedName, Optional.empty());
+						
+						// but keep it around in case it's needed again by another transformer in the chain
+						recentCache.get().put(transformedName, result);
+					}
+				} else if(recentCache.isPresent()){ // we have forgotten it, hopefully it's still around in the recent queue
+					result = recentCache.get().getIfPresent(transformedName);
 					if(result == null) {
 						logger.warn("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
 					}
@@ -343,8 +346,8 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 			    }
 				result = basicClass;
 			}
-			if(result != null) {
-				recentCache.put(transformedName, result);
+			if(result != null && recentCache.isPresent()) {
+				recentCache.get().put(transformedName, result);
 			}
 		} catch(Exception e) {
 			throw e; // pass it to LaunchClassLoader, who will handle it
