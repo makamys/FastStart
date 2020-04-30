@@ -43,7 +43,7 @@ public class Config {
 		cfg.setCategoryComment("cacheTransformer", 
 				"Options for the caching class transformer. (only appliable if it's enabled)");
 		badTransformers = cfg.getString("badTransformers", "cacheTransformer",
-				"org.spongepowered.asm.mixin.transformer.Proxy,appeng.transformer.asm.ApiRepairer",
+				"org.spongepowered.asm.mixin.transformer.Proxy,appeng.transformer.asm.ApiRepairer,com.mumfrey.liteloader.transformers.ClassOverlayTransformer+",
 				"Comma-separated list of transformers for which the view of the transformer chain should be restored.\n" + 
 				"\n" + 
 				"The caching class transformer replaces the transformer chain with just itself.\n" + 
