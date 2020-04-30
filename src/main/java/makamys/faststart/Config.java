@@ -47,12 +47,15 @@ public class Config {
 				"Comma-separated list of transformers for which the view of the transformer chain should be restored.\n" + 
 				"\n" + 
 				"The caching class transformer replaces the transformer chain with just itself.\n" + 
-				"This creates conflicts with certain other transformers which also access the transformer chain.\n" + 
+				"This creates conflicts with certain other transformers which also access the transformer chain,\n" +
+				"which can result in the game crashing.\n" +
 				"To solve this, our transformer will restore the view of the transformer chain while these transformers are running.\n" + 
 				"\n" + 
-				"If you see another transformer's name in your crash log, adding it to this list may solve the problem.");
+				"How to find bad transformers? If you see another transformer's name in your crash log,\n" +
+				"or see its name in one of the iterator stack traces printed with the -Dcachetransformer.debug\n" +
+				"java argument, adding it to this list may solve the problem.\n");
 		badClasses = cfg.getString("badClasses", "cacheTransformer", "net.eq2online.macros.permissions.MacroModPermissions", 
-				"Sometimes caching classes can cause problems. Classes in this list will not be cached.");
+				"Sometimes caching classes can cause problems. Classes in this list will not be cached.\n");
 		recentCacheSize = cfg.getInt("recentCacheSize", "cacheTransformer", 512, -1, Integer.MAX_VALUE, 
 				"Cached class bytecode is removed from memory after being used, but the most recent N are kept around\n" +
 				"because the same class is often transformed more than once. This option sets the value of that N.\n" +
