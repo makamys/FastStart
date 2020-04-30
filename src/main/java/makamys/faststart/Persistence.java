@@ -58,6 +58,7 @@ public class Persistence {
 					out.write((msg + "\n").getBytes(Charset.forName("UTF-8")));
 				} catch (IOException e) {
 					logger.warn("Failed to write to log file " + file);
+					e.printStackTrace();
 					failed = true;
 				}
 			}
@@ -65,6 +66,20 @@ public class Persistence {
 		
 		public void clear() {
 			file.delete();
+		}
+		
+		public void flush() {
+			if(failed) return;
+			
+			if(out != null) {
+				try {
+					out.flush();
+				} catch (IOException e) {
+					logger.warn("Failed to flush log file " + file);
+					e.printStackTrace();
+					failed = true;
+				}
+			}
 		}
 	}
 	

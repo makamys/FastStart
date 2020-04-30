@@ -67,7 +67,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				cacheTransformer.saveCache();
+				cacheTransformer.doSave();
 			}
 		}
 	}
@@ -119,6 +119,12 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 		logger.info("Rebuilding class cache, because " + reason);
 		FastStart.getDataFile("classCache.dat").delete();
 		Persistence.erroredClassesLog.clear();
+	}
+	
+	public void doSave() {
+		saveCache();
+		Persistence.erroredClassesLog.flush();
+		Persistence.debugLog.flush();
 	}
 	
 	private void loadCache() {
