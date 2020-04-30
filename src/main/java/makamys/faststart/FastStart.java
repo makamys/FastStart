@@ -28,17 +28,24 @@ public class FastStart {
     }
     
     public static File getDataFile(String name) {
+    	return getDataFile(name, true);
+    }
+    
+    public static File getDataFile(String name, boolean createIfNotExists) {
     	File myDir = new File(Launch.minecraftHome, "faststart");
     	if(!myDir.exists()) {
     		myDir.mkdir();
     	}
     	File dataFile = new File(myDir, name);
-    	try {
-			dataFile.createNewFile();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+    	
+    	if(createIfNotExists) {
+	    	try {
+				dataFile.createNewFile();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+    	}
     	return dataFile;
     }
     

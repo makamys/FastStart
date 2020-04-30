@@ -118,6 +118,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	private void clearCache(String reason) {
 		logger.info("Rebuilding class cache, because " + reason);
 		FastStart.getDataFile("classCache.dat").delete();
+		Persistence.erroredClassesLog.clear();
 	}
 	
 	private List<File> findMods(){
@@ -353,6 +354,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				recentCache.get().put(transformedName, result);
 			}
 		} catch(Exception e) {
+			Persistence.erroredClassesLog.write(transformedName + " / " + e.getClass().getName() + " / " + e.getMessage());
 			throw e; // pass it to LaunchClassLoader, who will handle it
 		} finally {
 			wrappedTransformers.alt = this;
