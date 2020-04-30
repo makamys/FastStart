@@ -87,7 +87,8 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	private Set<String> badClasses = 
 			new HashSet<>(Arrays.stream(Config.badClasses.split(",")).collect(Collectors.toList()));
 	
-	public static final boolean DEBUG_PRINT = Boolean.parseBoolean(System.getProperty("cachetransformer.debug", "false"));
+	public static final boolean DEBUG_PRINT = Config.verbosity == 2;
+	private static boolean printSave = Config.verbosity >= 1;
 	
 	private int lastSaveSize = 0;
 	private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
@@ -202,7 +203,9 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 		List<String> classesToSave = new ArrayList<String>();
 		dirtyClasses.drainTo(classesToSave);
 		
-		logger.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + classesToSave.size() + ")");
+		if(printSave) {
+			logger.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + classesToSave.size() + ")");
+		}
 		saveCacheChunk(classesToSave, outFile, true);
 		
 		lastSaveSize += classesToSave.size();
@@ -218,7 +221,9 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 					out.write(data.get());
 		    	}
 			}
-			logger.info("Saved class cache");
+			if(printSave) {
+				logger.info("Saved class cache");
+			}
 		} catch (IOException e) {
 			logger.info("Exception saving class cache");
 			// TODO Auto-generated catch block
