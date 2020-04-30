@@ -301,6 +301,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	private void superDebug(String msg) {
 	    if(DEBUG_PRINT) {
 	        logger.trace(msg);
+	        Persistence.debugLog.write(msg);
 	    }
 	}
 	

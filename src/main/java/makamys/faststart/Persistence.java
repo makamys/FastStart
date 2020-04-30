@@ -75,6 +75,7 @@ public class Persistence {
 	public static String lastMods;
 	
 	public static Log erroredClassesLog = new Log("errored-classes.txt");
+	public static Log debugLog = new Log("debug.txt");
 	
 	public static void loadIfNotLoadedAlready() {
 		if(props != null) return;
