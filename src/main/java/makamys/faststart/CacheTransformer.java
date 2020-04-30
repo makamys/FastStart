@@ -295,7 +295,9 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				recentCache.get().put(transformedName, result);
 			}
 		} catch(Exception e) {
-			Persistence.erroredClassesLog.write(transformedName + " / " + e.getClass().getName() + " / " + e.getMessage());
+			if(DEBUG_PRINT) {
+				Persistence.erroredClassesLog.write(transformedName + " / " + e.getClass().getName() + " / " + e.getMessage());
+			}
 			throw e; // pass it to LaunchClassLoader, who will handle it
 		} finally {
 			wrappedTransformers.alt = this;
