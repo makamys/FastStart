@@ -17,6 +17,7 @@ public class Config {
 
 	public static String badTransformers;
 	public static String badClasses;
+	public static String modFilesToIgnore;
 	public static int recentCacheSize;
 	public static int verbosity;
 	
@@ -57,6 +58,11 @@ public class Config {
 				"adding it to this list may solve the problem.\n");
 		badClasses = cfg.getString("badClasses", "cacheTransformer", "net.eq2online.macros.permissions.MacroModPermissions", 
 				"Sometimes caching classes can cause problems. Classes in this list will not be cached.\n");
+		modFilesToIgnore = cfg.getString("modFilesToIgnore", "cacheTransformer", "CMD files.jar", 
+				"Comma-separated list of mod files to ignore modifications of when deciding if a cache rebuild\n" +
+				"should be triggered.\n" +
+				"If your cache keeps getting rebuilt even though you haven't changed any mods, look for deranged\n" +
+				"mod files and add them to this list.");
 		recentCacheSize = cfg.getInt("recentCacheSize", "cacheTransformer", 512, -1, Integer.MAX_VALUE, 
 				"Cached class bytecode is removed from memory after being used, but the most recent N are kept around\n" +
 				"because the same class is often transformed more than once. This option sets the value of that N.\n" +

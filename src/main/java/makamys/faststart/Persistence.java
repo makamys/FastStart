@@ -184,10 +184,16 @@ public class Persistence {
 	}
 	
 	private static boolean filesMatch(Iterator<ModInfo> aIt, Iterator<ModInfo> bIt) {
+		Set<String> modFilesToIgnore = new HashSet<>(
+				Arrays.stream(Config.modFilesToIgnore.split(",")).collect(Collectors.toList()));
+		
 		while(aIt.hasNext()) {
 			ModInfo a = aIt.next(), b = bIt.next();
 			
-			if(!a.file.equals(b.file) || (a.modificationDate != b.modificationDate && !a.getValidHash().equals(b.getValidHash()))) {
+			if(!a.file.equals(b.file) || 
+					(!modFilesToIgnore.contains(a.file.getName()) 
+							&& a.modificationDate != b.modificationDate 
+							&& !a.getValidHash().equals(b.getValidHash()))) {
 				return false;
 			}
 		}
