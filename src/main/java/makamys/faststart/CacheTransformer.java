@@ -266,7 +266,8 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 				        System.out.println("oops,");
 				    }
 				    
-				    if(badTransformers.contains(transformer.getClass().getName())) {
+
+				    if(isBadTransformer(transformer)) {
 				        wrappedTransformers.alt = null; // Hide from the view of conflicting transformers
 				    }
 				    
@@ -296,6 +297,23 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 
 	    superDebug(String.format("Finished loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		return result;
+	}
+	
+	private boolean isBadTransformer(IClassTransformer transformer) {
+	    for(String badPattern : badTransformers) {
+	    	if(badPattern.endsWith("+")) {
+    			Class<?> baseClass = wrappedCachedClasses
+    					.get(badPattern.substring(0, badPattern.length() - 1));
+				if(baseClass != null && baseClass.isInstance(transformer)) {
+					return true;
+				}
+	    	} else {
+	    		if(badPattern.contentEquals(transformer.getClass().getName())) {
+	    			return true;
+	    		}
+	    	}
+	    }
+	    return false;
 	}
 	    
 	private void superDebug(String msg) {
