@@ -231,7 +231,14 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 	    superDebug(String.format("Starting loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
 		
 		try {
-			boolean dontCache = badClasses.contains(transformedName);
+			boolean dontCache = false;
+			for(String badPrefix : badClasses) {
+				if(transformedName.startsWith(badPrefix)){
+					dontCache = true;
+					break;
+				}
+			}
+			
 			if(cache.containsKey(transformedName) && !dontCache) {
 				superDebug("Yay, we have it cached!");
 				
