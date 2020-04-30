@@ -99,7 +99,7 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 		this.wrappedCachedClasses = wrappedCachedClasses;
 		wrappedCachedClasses.addListener(this);
 		
-		if(isDevEnvironment() || modsChanged()) {
+		if(isDevEnvironment() || Persistence.modsChanged()) {
 			clearCache(isDevEnvironment() ? "this is a dev environment." : "mods have changed.");
 		} else {
 			loadCache();
@@ -119,79 +119,6 @@ public class CacheTransformer implements IClassTransformer, MapAddListener<Strin
 		logger.info("Rebuilding class cache, because " + reason);
 		FastStart.getDataFile("classCache.dat").delete();
 		Persistence.erroredClassesLog.clear();
-	}
-	
-	private List<File> findMods(){
-		File modsDir = new File(Launch.minecraftHome, "mods");
-		File versionedModsDir = new File(modsDir, ExampleMod.MCVERSION);
-		
-		List<File> mods = new ArrayList<File>();
-		
-		for(File dir : Arrays.asList(modsDir, versionedModsDir)) {
-			if(dir.isDirectory()) {
-				mods.addAll(Arrays.asList(
-						modsDir.listFiles(x -> x.getName().endsWith(".jar") 
-										|| x.getName().endsWith(".litemod"))));
-			}
-		}
-		
-		mods.addAll(ModListHelper.additionalMods.values());
-		return mods;
-	}
-	
-	private boolean modsChanged() {
-		boolean changed = false;
-		
-		Persistence.loadIfNotLoadedAlready();
-		
-		Set<Pair<File, Long>> modFiles = findMods().stream()
-				.map(f -> Pair.of(f, f.lastModified())).collect(Collectors.toSet());
-		
-		Set<Pair<File, Long>> previousModFiles = new HashSet<>();
-		
-		List<String> lines = Arrays.asList(Persistence.lastMods.split("\n"));
-		File lastFile = null;
-		for(String line : lines) {
-			if(lastFile == null) {
-				lastFile = new File(line);
-			} else {
-				previousModFiles.add(Pair.of(lastFile, Long.parseLong(line)));
-				lastFile = null;
-			}
-		}
-		
-		changed = previousModFiles.size() != modFiles.size() ||
-				!filesMatch(	previousModFiles.stream().sorted().iterator(), modFiles.stream().sorted().iterator());
-		
-		Persistence.lastMods = String.join("\n", modFiles.stream()
-				.map(p -> p.getKey().getPath() + "\n" + p.getValue())
-				.collect(Collectors.toList()));
-		Persistence.save();
-	
-		
-		return changed;
-	}
-	
-	private boolean filesMatch(Iterator<Pair<File, Long>> aIt, Iterator<Pair<File, Long>> bIt) {
-		while(aIt.hasNext()) {
-			Pair<File, Long> a = aIt.next(), b = bIt.next();
-			
-			File fileA = a.getKey(), fileB = b.getKey();
-			long dateA = a.getValue(), dateB = b.getValue();
-			if(!fileA.equals(fileB) || (dateA != dateB && !Arrays.equals(calculateHash(fileA), calculateHash(fileB)))) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
-	private byte[] calculateHash(File f) {
-		try(InputStream is = new BufferedInputStream(new FileInputStream(f))){
-			return DigestUtils.md5(is);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return new byte[] {};
 	}
 	
 	private void loadCache() {
