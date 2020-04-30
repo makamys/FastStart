@@ -40,6 +40,13 @@ import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
+/**
+ * This transformer takes the place of the entire transformer chain. The first time a class is loaded,
+ * it runs it through the other transformers, and saves the result. On following occasions, it simply
+ * returns the already cached class, with the goal of speeding up load times.<br><br>
+ * 
+ * It works by replacing the LaunchClassLoader's transformer list with a {@link WrappedTransformerList}. 
+ */
 public class CacheTransformer implements IClassTransformer, MapAddListener<String, Class<?>> {
 	
 	private static final Logger logger = LogManager.getLogger("faststart");

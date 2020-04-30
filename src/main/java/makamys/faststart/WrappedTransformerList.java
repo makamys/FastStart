@@ -14,9 +14,13 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
 /**
  * The purpose of this class is to be wrapped around the LaunchClassLoader's transformer list.
  * It delegates all operations to the original list, save for one: iterator() (which
- * LaunchClassLoader uses to iterate over the transformer chain) may return an iterator
- * to a list which only contains CacheTransformer.
- */
+ * LaunchClassLoader uses to iterate over the transformer chain):
+ * <ul>
+ * 	<li> returns an iterator to a list which only contains {@link CacheTransformer} normally</li>
+ * 	<li> returns an iterator to the original list inside exceptional transformers that require 
+ *       iteration over the real transformer chain</li>
+ * </ul>
+ */	
 
 public class WrappedTransformerList<T> implements List<T> {
     List<T> original;
