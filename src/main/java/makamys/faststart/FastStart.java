@@ -44,6 +44,9 @@ public class FastStart {
     	if(Config.useCacheTransformer) {
     		cacheTransformer = CacheTransformer.register();
     	}
+    	
+    	Persistence.lastVersion = FastStartMod.VERSION;
+    	Persistence.save();
     }
     
     public static File getDataFile(String name) {

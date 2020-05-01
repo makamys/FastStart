@@ -107,6 +107,7 @@ public class Persistence {
 	private static Properties props;
 	
 	public static String lastMods;
+	public static String lastVersion;
 	
 	public static Log erroredClassesLog = new Log("errored-classes.txt");
 	public static Log debugLog = new Log("debug.txt");
@@ -122,11 +123,13 @@ public class Persistence {
 			e.printStackTrace();
 		}
 		lastMods = props.getProperty("lastMods", "");
+		lastVersion = props.getProperty("lastVersion", "");
 	}
 	
 	public static void save() {
 		try {
 			props.setProperty("lastMods", lastMods);
+			props.setProperty("lastVersion", lastVersion);
 			
 			props.store(new BufferedOutputStream(new FileOutputStream(FastStart.getDataFile("persistence.txt"))),
 					"This file is used by FastStart to store data. You probably shouldn't edit it.");
