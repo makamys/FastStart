@@ -49,7 +49,7 @@ public class Config {
 		cfg.load();
 		
 		cfg.setCategoryComment("-features", "Enable or disable features");
-		useThreadedTextureLoader = cfg.getBoolean("useThreadedTextureLoader", "-features", true, 
+		useThreadedTextureLoader = cfg.getBoolean("useThreadedTextureLoader", "-features", false,
 				"Use multi-threaded texture loading when stitching textures?");
 		useCacheTransformer = cfg.getBoolean("useCacheTransformer", "-features", true, 
 				"Use caching class transformer?");

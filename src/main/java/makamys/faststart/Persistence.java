@@ -230,7 +230,7 @@ public class Persistence {
 	
 	private static List<ModInfo> findMods(){
 		File modsDir = new File(Launch.minecraftHome, "mods");
-		File versionedModsDir = new File(modsDir, ExampleMod.MCVERSION);
+		File versionedModsDir = new File(modsDir, FastStartMod.MCVERSION);
 		
 		List<File> modFiles = new ArrayList<>();
 		
