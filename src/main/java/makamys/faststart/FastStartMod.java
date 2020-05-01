@@ -34,7 +34,7 @@ public class FastStartMod
 	public static FastStartMod INSTANCE;
 	
     public static final String MODID = "faststart";
-    public static final String VERSION = "1.0";
+    public static final String VERSION = "0.0";
     public static final String MCVERSION = "1.7.10";
     
     @EventHandler
