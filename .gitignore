@@ -18,6 +18,7 @@ logs/
 options.txt
 .mixin.out/
 classCache.dat
+__pycache__/
 
 /*Audio files*/
 *.ogg
