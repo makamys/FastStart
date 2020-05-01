@@ -36,6 +36,7 @@ public class FastStart {
     
     public void init(){
     	Config.loadIfNotLoadedAlready();
+    	Persistence.loadIfNotLoadedAlready();
     	
     	if(Config.useThreadedTextureLoader) {
     			textureLoader = new ThreadedTextureLoader(

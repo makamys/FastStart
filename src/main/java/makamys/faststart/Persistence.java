@@ -127,6 +127,12 @@ public class Persistence {
 	}
 	
 	public static void save() {
+		if(props == null) {
+			// If we loaded here, we'd need to implement selective loading to make sure we don't
+			// overwrite values already set by loading.. it's easier to just make sure we
+			// load at the start.
+			throw new IllegalStateException("Tried to save persistence without loading first");
+		}
 		try {
 			props.setProperty("lastMods", lastMods);
 			props.setProperty("lastVersion", lastVersion);
@@ -169,8 +175,6 @@ public class Persistence {
 	
 	public static boolean modsChanged() {
 		boolean changed = false;
-		
-		Persistence.loadIfNotLoadedAlready();
 		
 		List<ModInfo> modFiles = findMods();
 		
