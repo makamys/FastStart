@@ -37,9 +37,11 @@ public class FastStart {
     public void init(){
     	Config.loadIfNotLoadedAlready();
     	
-    	textureLoader = new ThreadedTextureLoader(
-    			Config.textureLoaderThreadCount != 0 ? Config.textureLoaderThreadCount
-    					: Runtime.getRuntime().availableProcessors());
+    	if(Config.useThreadedTextureLoader) {
+    			textureLoader = new ThreadedTextureLoader(
+					Config.textureLoaderThreadCount != 0 ? Config.textureLoaderThreadCount
+							: Runtime.getRuntime().availableProcessors());
+    	}
         
     	if(Config.useCacheTransformer) {
     		cacheTransformer = CacheTransformer.register();
