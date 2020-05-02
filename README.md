@@ -32,7 +32,7 @@ This tweak changes the transformer chain to just a single transformer which runs
 all the other transformers the first time a class is loaded, but on consecutive runs,
 loads the results from the past run for instantenous transformation!
 
-**Improvement on my computer:** 10-30s depending on size of modpack
+**Improvement on my computer:** 10-30s depending on size of modpack (after the first run).
 
 **Risk level:** Medium. The config file may have to be tweaked to get it to work without
 crashing. (Contributions of such changes are welcome.)
