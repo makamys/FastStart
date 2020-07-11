@@ -55,7 +55,7 @@ public abstract class MixinFolderResourcePack {
 	    if(DEBUG) System.out.println("exploring folder=" + folder + " path=" + path);
 		
 	    for(File f: folder.listFiles()) {
-			String myPath = (path.isEmpty() ? "" : path + "/") + f.getName();
+			String myPath = (path.isEmpty() ? "" : path + File.separator) + f.getName();
 			filePaths.add(myPath);
 			if(f.isDirectory()) {
 				explore(f, myPath);
