@@ -32,7 +32,7 @@ configurations {
 
 apply plugin: 'forge'
 
-version = "1.7.10-1.0"
+version = "1.7.10-1.1"
 group= "makamys.faststart" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "faststart"
 
