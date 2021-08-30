@@ -40,8 +40,7 @@ crashing. (Contributions of such changes are welcome.)
 #### Known issues
 * Mods that use DragonAPI cause a crash on startup
 * Some mod in Blightfall causes an error message in the menu, but it's harmless
-
-All of these could be fixed with a little rework ~~but I'm too lazy to do it~~.
+* Resource Loader + FlyingCullers causes a crash on startups after the first one
 
 > Note: you may have to delete classCache.dat when making changes to the modpack, lest the
 class cache get stale. There's a system that automatically rebuilds the cache if it detects
