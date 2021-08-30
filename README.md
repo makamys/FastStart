@@ -23,8 +23,8 @@ Currently, 3 tweaks are implemented:
 
 ## 1. Class loader cache
 
-All classes loaded by Minecraft are run through a chain of transformers, which mods
-can add their own transformers to. It is in this way that the functionality of
+All classes loaded by Minecraft are run through a chain of transformers, to which mods
+can add their own transformers. It is in this way that the functionality of
 vanilla classes is changed.
 
 The time spent running the transformers can add up to a significant portion of time.
