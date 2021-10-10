@@ -1,3 +1,7 @@
+**This project has been merged into [CoreTweaks](https://github.com/makamys/CoreTweaks) and is no longer maintained. The information below is provided for historical purposes only.**
+
+---
+
 *FastStart* is an experimental Minecraft mod (currently for 1.7.10) created to reduce the load time
 of large modpacks.
 
